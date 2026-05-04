@@ -24,7 +24,9 @@ export const ContasReceberService = {
         transacoes:fin_transacoes(
           id,
           valor,
+          tipo,
           tipo_transacao,
+          conta_origem_id,
           data_pagamento,
           conta:fin_contas_bancarias(titular, conta, agencia, banco_nome)
         )
