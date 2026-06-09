@@ -106,8 +106,7 @@ export const DespesasFixasService = {
   },
 
   async getKpis(tab: FixasTab, filtros: IFixasFiltros) {
-    const { data, error } = await supabase.rpc('get_despesas_kpis', {
-      p_origem_tipo: 'DESPESA_FIXA',
+    const { data, error } = await supabase.rpc('get_despesas_fixas_kpis', {
       p_tab: tab,
       p_busca: filtros.busca || null,
       p_categoria_id: filtros.categoriaId || null,

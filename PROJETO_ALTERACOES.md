@@ -1,5 +1,25 @@
 # Histórico de Alterações do Projeto
 
+## [2026-06-09] - Feature: Novos KPIs de Despesas Fixas e Variáveis (Total, Pago, Pendente) via Banco
+
+**O que foi feito:**
+- **Novas RPCs no Supabase**: Criadas duas funções PostgreSQL, `get_despesas_fixas_kpis` e `get_despesas_variaveis_kpis` (migração `20260609_create_rpc_despesas_kpis.sql`), para computar os novos KPIs no banco de dados com base nas abas e filtros correntes:
+  - `valor_total`: soma de `valor_total` dos títulos.
+  - `valor_pago`: soma de `valor_pago` dos títulos.
+  - `valor_pendente`: soma de `valor_total - valor_pago`.
+- **Frontend Services**: Refatorados `DespesasFixasService.getKpis` e `DespesasVariaveisService.getKpis` para invocar as respectivas novas RPCs em vez da antiga `get_despesas_kpis`.
+- **Componentes de KPI**: Atualizados os componentes de interface `FixasKpis.tsx` e `VariaveisKpis.tsx` para exibir os novos valores de **Valor Total**, **Valor Pago** e **Valor Pendente** em substituição aos KPIs anteriores ("Total a Pagar", "Vencendo Hoje", "Total em Atraso").
+- **TanStack Query Invalidation**: Importado e configurado o `useQueryClient` nas páginas `DespesasFixas.page.tsx` e `DespesasVariaveis.page.tsx` para invalidar a chave `['caixa_dashboard']` após qualquer criação, edição, estorno ou pagamento de títulos, garantindo sincronização instantânea com os gráficos e saldos do dashboard financeiro global do caixa.
+
+**Arquivos afetados:**
+- `modules/financeiro/submodules/despesas-fixas/components/FixasKpis.tsx` [MODIFY]
+- `modules/financeiro/submodules/despesas-variaveis/components/VariaveisKpis.tsx` [MODIFY]
+- `modules/financeiro/submodules/despesas-fixas/despesas-fixas.service.ts` [MODIFY]
+- `modules/financeiro/submodules/despesas-variaveis/despesas-variaveis.service.ts` [MODIFY]
+- `modules/financeiro/submodules/despesas-fixas/DespesasFixas.page.tsx` [MODIFY]
+- `modules/financeiro/submodules/despesas-variaveis/DespesasVariaveis.page.tsx` [MODIFY]
+- `supabase/migrations/20260609_create_rpc_despesas_kpis.sql` [NEW]
+
 ## [2026-06-09] - Fix/Feat: Ativação do Recebimento A Prazo e Toggle de Status na Interface
 
 **O que foi feito:**

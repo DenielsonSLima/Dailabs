@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { DespesasFixasService } from './despesas-fixas.service';
 import { FinanceiroService } from '../../financeiro.service';
 import { ITituloFixa, FixasTab, IFixasFiltros, GroupByFixa } from './despesas-fixas.types';
@@ -10,6 +11,7 @@ import ModalBaixa from '../components/ModalBaixa';
 import ConfirmModal from '../../../../components/ConfirmModal';
 
 const DespesasFixasPage: React.FC = () => {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<FixasTab>('MES_ATUAL');
   const [titulos, setTitulos] = useState<ITituloFixa[]>([]);
   const [categorias, setCategorias] = useState<any[]>([]);
@@ -115,6 +117,7 @@ const DespesasFixasPage: React.FC = () => {
       await DespesasFixasService.delete(deleteId);
       setDeleteId(null);
       setToast({ type: 'success', message: 'Despesa estornada com sucesso!' });
+      queryClient.invalidateQueries({ queryKey: ['caixa_dashboard'] });
       loadData(true);
     } catch (e) {
       setToast({ type: 'error', message: 'Erro ao estornar lançamento.' });
@@ -182,7 +185,12 @@ const DespesasFixasPage: React.FC = () => {
         <ModalBaixa
           titulo={selectedTitulo as any}
           onClose={() => setSelectedTitulo(null)}
-          onSuccess={() => { setSelectedTitulo(null); loadData(true); setToast({ type: 'success', message: 'Baixa realizada com sucesso!' }); }}
+          onSuccess={() => { 
+            setSelectedTitulo(null); 
+            queryClient.invalidateQueries({ queryKey: ['caixa_dashboard'] });
+            loadData(true); 
+            setToast({ type: 'success', message: 'Baixa realizada com sucesso!' }); 
+          }}
         />
       )}
 
@@ -190,7 +198,13 @@ const DespesasFixasPage: React.FC = () => {
         <DespesaFixaForm
           tituloEditando={tituloEditando}
           onClose={() => { setIsFormOpen(false); setTituloEditando(null); }}
-          onSuccess={() => { setIsFormOpen(false); setTituloEditando(null); loadData(true); setToast({ type: 'success', message: `Despesa fixa ${tituloEditando ? 'atualizada' : 'lançada'} com sucesso!` }); }}
+          onSuccess={() => { 
+            setIsFormOpen(false); 
+            setTituloEditando(null); 
+            queryClient.invalidateQueries({ queryKey: ['caixa_dashboard'] });
+            loadData(true); 
+            setToast({ type: 'success', message: `Despesa fixa ${tituloEditando ? 'atualizada' : 'lançada'} com sucesso!` }); 
+          }}
         />
       )}
 

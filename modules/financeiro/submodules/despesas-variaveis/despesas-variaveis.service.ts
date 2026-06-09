@@ -106,8 +106,7 @@ export const DespesasVariaveisService = {
   },
 
   async getKpis(tab: VariaveisTab, filtros: IVariaveisFiltros) {
-    const { data, error } = await supabase.rpc('get_despesas_kpis', {
-      p_origem_tipo: 'DESPESA_VARIAVEL',
+    const { data, error } = await supabase.rpc('get_despesas_variaveis_kpis', {
       p_tab: tab,
       p_busca: filtros.busca || null,
       p_categoria_id: filtros.categoriaId || null,
