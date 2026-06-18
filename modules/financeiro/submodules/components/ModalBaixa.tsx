@@ -46,7 +46,12 @@ const ModalBaixa: React.FC<Props> = ({ titulo, onClose, onSuccess }) => {
         ContasBancariasService.getAll(),
         FormasPagamentoService.getAll()
       ]);
-      setContas(cData.filter(c => c.ativo));
+      
+      const activeContas = cData.filter(c => c.ativo);
+      setContas(activeContas);
+      if (activeContas.length === 1) {
+        setContaId(activeContas[0].id);
+      }
 
       // Filtrar apenas formas de movimento imediato (CAIXA) e que batam com o tipo do título
       const filteredFormas = fData.filter(f => {

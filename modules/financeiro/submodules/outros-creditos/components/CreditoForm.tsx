@@ -58,7 +58,11 @@ const CreditoForm: React.FC<Props> = ({ editData, onClose, onSuccess }) => {
       SociosService.getAll(),
       OutrosCreditosService.getFormasPagamento(),
     ]).then(([cData, sData, fData]) => {
-      setContas(cData.filter(c => c.ativo));
+      const activeContas = cData.filter(c => c.ativo);
+      setContas(activeContas);
+      if (activeContas.length === 1) {
+        setFormData(prev => ({ ...prev, conta_id: activeContas[0].id }));
+      }
       const ativos = sData.filter((s: any) => s.ativo);
       setSociosDisponiveis(ativos);
       setFormasPagamento(fData || []);

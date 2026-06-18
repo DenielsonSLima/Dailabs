@@ -1,6 +1,50 @@
 # Histórico de Alterações do Projeto
 
-## [2026-06-09] - Remove: Desativação do Nexus AI (Assistente de RAG)
+## [2026-06-18] — Refinamento: Padrões de Anúncios para Seminovos em Sergipe
+
+**O que foi feito:**
+- **Templates de Anúncio**: Atualizados os 5 templates globais na tabela `mkt_templates` no banco de dados para focar no mercado de veículos seminovos com Sergipe (SE) como região padrão.
+- **Exibição da Região**: Modificada a função de renderização `regiaoLabel` em `TemplateSelector.tsx` para traduzir a sigla de estado "SE" para "Sergipe (SE)" de forma amigável.
+- **Wizard de Novo Anúncio**: Ajustada a configuração padrão de região para iniciar como "Estadual" com o estado de Sergipe (SE) pré-selecionado, tanto na página `Marketing.page.tsx` quanto em `NovoAnuncio.page.tsx`.
+- **Correção de Modal/Stacking**: Convertido o modal de criação `NovoAnuncioWizard` em `Marketing.page.tsx` para um React Portal renderizado diretamente em `document.body` com `z-[9999]`, travando também o scroll do body. Isso corrige o bug de sobreposição onde elementos do layout (como Header) apareciam por cima ou permitiam interações por baixo do modal.
+
+**Por quê:**
+- Direcionar o módulo de marketing especificamente para o segmento de lojas de veículos seminovos com foco regional em Sergipe (SE).
+- Garantir isolamento visual completo do modal de anúncios de acordo com as diretrizes do projeto (`instrucoes/UI_MODAL_PORTALS.md`).
+
+**Arquivos afetados:**
+- `modules/marketing/components/TemplateSelector.tsx` [MODIFY]
+- `modules/marketing/Marketing.page.tsx` [MODIFY]
+- `modules/marketing/NovoAnuncio.page.tsx` [MODIFY]
+- Banco de Dados: Tabela `mkt_templates` [UPDATE]
+
+---
+
+## [2026-06-18] — Feature: Módulo de Anúncios Pagos (Marketing Hub — Tráfego Pago)
+
+**O que foi feito:**
+- **Banco de Dados**: Adicionados campos em `mkt_campanhas` (`platform`, `template_id`, `regiao_config`, `objetivo`, `url_externa`, `observacoes`) e em `mkt_meta_integrations` (`platform`, `account_name`, `token_expires_at`, `saldo_disponivel`, `moeda`). Criada tabela `mkt_templates` com RLS e 5 templates padrão globais.
+- **Serviço**: Criado `marketing-ads.service.ts` com CRUD completo de templates, campanhas e integrações, além de helpers para geração de URLs de impulsionamento nas plataformas nativas.
+- **Hub Central** (`AnuncioHub.page.tsx`): KPIs (campanhas ativas, rascunhos, gasto diário, contas conectadas), lista de campanhas em cards, gestão de conexões OAuth por plataforma (Facebook, Instagram, Google), modal de conexão manual com saldo.
+- **Wizard de Criação** (`NovoAnuncio.page.tsx`): 5 etapas — Veículo → Template → Plataforma → Configurar (objetivo, região, orçamento, duração) → Revisar.
+- **Componentes**: `PlataformaConnect.tsx`, `TemplateSelector.tsx`, `CampanhaCard.tsx`.
+- **Navegação**: Menu "Marketing" com submenu na Sidebar. Rotas adicionadas no App.tsx.
+- **Abordagem Estágio 1**: Interface completa + OAuth manual + redirecionamento inteligente para as plataformas nativas (FB Ads Manager, Google Ads). Criação automática via API aguarda aprovação da Meta e Google.
+
+**Arquivos afetados:**
+- `modules/marketing/marketing-ads.service.ts` [NEW]
+- `modules/marketing/AnuncioHub.page.tsx` [NEW]
+- `modules/marketing/NovoAnuncio.page.tsx` [NEW]
+- `modules/marketing/components/PlataformaConnect.tsx` [NEW]
+- `modules/marketing/components/TemplateSelector.tsx` [NEW]
+- `modules/marketing/components/CampanhaCard.tsx` [NEW]
+- `App.tsx` [MODIFY — rotas]
+- `components/Sidebar.tsx` [MODIFY — menu Marketing]
+- Banco de Dados: `mkt_campanhas`, `mkt_meta_integrations` [ALTER], `mkt_templates` [NEW]
+
+---
+
+
 
 **O que foi feito:**
 - **Remoção do Chatbot**: Desativado o assistente flutuante "Nexus AI" (`AIAssistant`) removendo a sua importação e declaração do componente principal global [Layout.tsx](file:///Users/denielson/Desktop/Dailabs%20DriveCar/components/Layout.tsx), atendendo ao pedido do usuário de ocultar o boneco/chatbot do ERP.

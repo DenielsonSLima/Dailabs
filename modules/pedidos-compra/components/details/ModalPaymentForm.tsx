@@ -48,7 +48,12 @@ const ModalPaymentForm: React.FC<Props> = ({ pedidoId, formaPagamentoId, valorSu
         ContasBancariasService.getAll()
       ]);
       setFormas(fData.filter(f => (f.tipo_movimentacao !== 'RECEBIMENTO') && f.ativo));
-      setContas(cData.filter(c => c.ativo));
+      
+      const activeContas = cData.filter(c => c.ativo);
+      setContas(activeContas);
+      if (activeContas.length === 1) {
+        setContaBancariaId(activeContas[0].id);
+      }
     }
     loadInitial();
   }, []);

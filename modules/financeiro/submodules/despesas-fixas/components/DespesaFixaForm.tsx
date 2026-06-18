@@ -72,7 +72,13 @@ const DespesaFixaForm: React.FC<Props> = ({ onClose, onSuccess, tituloEditando }
         FormasPagamentoService.getAll()
       ]);
       setGrupos(gruposData || []);
-      setContas(cData.filter(c => c.ativo));
+      
+      const activeContas = cData.filter(c => c.ativo);
+      setContas(activeContas);
+      if (activeContas.length === 1) {
+        setFormData(prev => ({ ...prev, conta_id: activeContas[0].id }));
+      }
+      
       setFormas(fData.filter(f => f.ativo && f.destino_lancamento !== 'CONSIGNACAO'));
     }
     loadData();

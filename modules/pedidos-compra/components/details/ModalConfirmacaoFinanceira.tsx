@@ -51,7 +51,13 @@ const ModalConfirmacaoFinanceira: React.FC<Props> = ({ pedido, onClose, onConfir
         }
       });
     }
-    ContasBancariasService.getAll().then(data => setContas(data.filter((c: any) => c.ativo)));
+    ContasBancariasService.getAll().then(data => {
+      const active = data.filter((c: any) => c.ativo);
+      setContas(active);
+      if (active.length === 1) {
+        setSelectedContaId(active[0].id);
+      }
+    });
   }, [pedido.forma_pagamento_id, pedido.pagamentos]);
 
   useEffect(() => {

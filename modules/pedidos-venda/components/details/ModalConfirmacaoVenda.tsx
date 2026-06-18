@@ -26,7 +26,13 @@ const ModalConfirmacaoVenda: React.FC<Props> = ({ pedido, valorVendaEfetivo, onC
     if (pedido.forma_pagamento_id) {
       CondicoesRecebimentoService.getByFormaPagamento(pedido.forma_pagamento_id).then(setCondicoes);
     }
-    ContasBancariasService.getAll().then(data => setContas(data.filter((c: any) => c.ativo)));
+    ContasBancariasService.getAll().then(data => {
+      const active = data.filter((c: any) => c.ativo);
+      setContas(active);
+      if (active.length === 1) {
+        setSelectedContaId(active[0].id);
+      }
+    });
   }, [pedido.forma_pagamento_id]);
 
   useEffect(() => {

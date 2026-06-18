@@ -48,7 +48,13 @@ const ExpenseForm: React.FC<Props> = ({ onClose, onSubmit }) => {
       ]);
       setCategorias(catData.filter(c => c.natureza === 'SAIDA' && c.tipo === 'VARIAVEL'));
       setFormas(fData.filter(f => f.ativo && f.tipo_movimentacao !== 'RECEBIMENTO'));
-      setContas(cData.filter(c => c.ativo));
+      
+      const activeContas = cData.filter(c => c.ativo);
+      setContas(activeContas);
+      if (activeContas.length === 1) {
+        setContaId(activeContas[0].id);
+      }
+      
       setLoading(false);
     }
     loadInitial();

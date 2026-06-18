@@ -42,6 +42,7 @@ import RelatoriosPage from './modules/relatorios/Relatorios.page.tsx';
 import AjustesPage from './modules/ajustes/Ajustes.page.tsx';
 import StoryGeneratorPage from './modules/marketing/StoryGenerator.page.tsx';
 import FeedGeneratorPage from './modules/marketing/FeedGenerator.page.tsx';
+import MarketingPage from './modules/marketing/Marketing.page.tsx';
 
 // Submódulos Relatórios
 import RelatorioVendasPage from './modules/relatorios/pages/RelatorioVendas.page.tsx';
@@ -395,8 +396,9 @@ const App: React.FC = () => {
                   <Route path="/ajustes/contas-bancarias" element={<ContasBancariasPage />} />
                   <Route path="/ajustes/saldo-inicial" element={<SaldoInicialPage />} />
 
-                  <Route path="/marketing/stories" element={<StoryGeneratorPage />} />
+                  <Route path="/marketing" element={<MarketingPage />} />
                   <Route path="/marketing/feed" element={<FeedGeneratorPage />} />
+                  <Route path="/marketing/stories" element={<StoryGeneratorPage />} />
 
                   <Route path="*" element={<Navigate to={window.innerWidth < 768 ? '/caixa' : '/inicio'} />} />
                 </Routes>

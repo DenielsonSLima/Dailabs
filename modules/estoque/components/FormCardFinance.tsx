@@ -17,6 +17,14 @@ const FormCardFinance: React.FC<Props> = ({ formData, onChange, onNotification, 
   const [custoRaw, setCustoRaw] = useState('');
   const [vendaRaw, setVendaRaw] = useState('');
 
+  // Consignment helper states
+  const [consignacaoTipo, setConsignacaoTipo] = useState<'valor_minimo' | 'margem' | 'porcentagem'>('valor_minimo');
+  const [porcentagemRaw, setPorcentagemRaw] = useState('90');
+  const [margemRaw, setMargemRaw] = useState('');
+  const [valorMinimoRaw, setValorMinimoRaw] = useState('');
+
+  const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
   // Formata o valor inicial para o input
   useEffect(() => {
     if (formData.valor_custo !== undefined) {
@@ -26,6 +34,30 @@ const FormCardFinance: React.FC<Props> = ({ formData, onChange, onNotification, 
       setVendaRaw(maskCurrency(formData.valor_venda));
     }
   }, [formData.valor_custo, formData.valor_venda]);
+
+  // Sincroniza estados auxiliares de consignação quando o custo/venda mudam externamente
+  useEffect(() => {
+    if (isConsignacao) {
+      if (formData.valor_custo !== undefined) {
+        setValorMinimoRaw(maskCurrency(formData.valor_custo));
+      }
+      if (formData.valor_venda !== undefined && formData.valor_custo !== undefined) {
+        const diff = Math.max(0, formData.valor_venda - formData.valor_custo);
+        setMargemRaw(maskCurrency(diff));
+        
+        if (formData.valor_venda > 0) {
+          const pct = (formData.valor_custo / formData.valor_venda) * 100;
+          setPorcentagemRaw(prev => {
+            const parsedPrev = parseFloat(prev) || 0;
+            if (Math.abs(parsedPrev - pct) > 0.05) {
+              return pct.toFixed(1);
+            }
+            return prev;
+          });
+        }
+      }
+    }
+  }, [formData.valor_custo, formData.valor_venda, isConsignacao]);
 
   useEffect(() => {
     SociosService.getAll().then(data => {
@@ -49,11 +81,26 @@ const FormCardFinance: React.FC<Props> = ({ formData, onChange, onNotification, 
 
   const handleCurrencyChange = (val: string, field: 'valor_custo' | 'valor_venda') => {
     const masked = maskCurrency(val);
-    if (field === 'valor_custo') setCustoRaw(masked);
-    else setVendaRaw(masked);
-
-    const parsed = parseCurrencyToNumber(masked);
-    onChange({ [field]: parsed });
+    if (field === 'valor_custo') {
+      setCustoRaw(masked);
+      const parsed = parseCurrencyToNumber(masked);
+      onChange({ valor_custo: parsed });
+    } else {
+      setVendaRaw(masked);
+      const parsedVenda = parseCurrencyToNumber(masked);
+      
+      let parsedCusto = formData.valor_custo || 0;
+      if (isConsignacao) {
+        if (consignacaoTipo === 'porcentagem') {
+          const pct = parseFloat(porcentagemRaw) || 0;
+          parsedCusto = parsedVenda * (pct / 100);
+        } else if (consignacaoTipo === 'margem') {
+          const margemNum = parseCurrencyToNumber(margemRaw);
+          parsedCusto = Math.max(0, parsedVenda - margemNum);
+        }
+      }
+      onChange({ valor_venda: parsedVenda, valor_custo: parsedCusto });
+    }
   };
 
   // Cálculo de Margem em Tempo Real
@@ -61,7 +108,7 @@ const FormCardFinance: React.FC<Props> = ({ formData, onChange, onNotification, 
   const venda = formData.valor_venda || 0;
   const servicos = formData.valor_custo_servicos || 0;
   const investimento = isConsignacao ? servicos : (custo + servicos);
-  const lucro = venda - investimento;
+  const lucro = venda - custo - servicos;
   const margem = investimento > 0 ? (lucro / investimento * 100) : 0;
 
   return (
@@ -89,20 +136,152 @@ const FormCardFinance: React.FC<Props> = ({ formData, onChange, onNotification, 
       </div>
       <div className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
         <div className="lg:col-span-5 space-y-6">
-          <div>
-            <label className={`block text-[10px] font-black uppercase mb-3 ml-1 tracking-widest ${isConsignacao ? 'text-violet-500' : 'text-slate-400'}`}>
-              {isConsignacao ? 'Valor do Repasse Acordado (Consignação)' : 'Custo de Compra'}
-            </label>
-            <div className="relative">
-              <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl">R$</span>
-              <input
-                type="text"
-                value={custoRaw}
-                onChange={e => handleCurrencyChange(e.target.value, 'valor_custo')}
-                className="w-full bg-white border-2 border-slate-100 rounded-3xl px-6 py-5 pl-14 text-2xl font-black text-[#111827] outline-none focus:border-indigo-500 transition-all shadow-inner"
-              />
+          {isConsignacao ? (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div>
+                <label className="block text-[10px] font-black text-violet-500 uppercase mb-3 ml-1 tracking-widest">
+                  Modalidade de Repasse (Consignação)
+                </label>
+                <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1 rounded-2xl border border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConsignacaoTipo('porcentagem');
+                      const pct = parseFloat(porcentagemRaw) || 0;
+                      const valCusto = (formData.valor_venda || 0) * (pct / 100);
+                      onChange({ valor_custo: valCusto });
+                    }}
+                    className={`py-2 text-[10px] font-bold uppercase rounded-xl transition-all ${consignacaoTipo === 'porcentagem' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    % Repasse
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConsignacaoTipo('margem');
+                      const margemNum = parseCurrencyToNumber(margemRaw);
+                      const valCusto = Math.max(0, (formData.valor_venda || 0) - margemNum);
+                      onChange({ valor_custo: valCusto });
+                    }}
+                    className={`py-2 text-[10px] font-bold uppercase rounded-xl transition-all ${consignacaoTipo === 'margem' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    Margem Loja
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConsignacaoTipo('valor_minimo');
+                      const valNum = parseCurrencyToNumber(valorMinimoRaw);
+                      onChange({ valor_custo: valNum });
+                    }}
+                    className={`py-2 text-[10px] font-bold uppercase rounded-xl transition-all ${consignacaoTipo === 'valor_minimo' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    Valor Mínimo
+                  </button>
+                </div>
+              </div>
+
+              {consignacaoTipo === 'porcentagem' && (
+                <div className="animate-in slide-in-from-top-2 duration-300">
+                  <label className="block text-[10px] font-black text-violet-400 uppercase mb-3 ml-1 tracking-widest">
+                    Porcentagem de Repasse (%)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={porcentagemRaw}
+                      onChange={e => {
+                        setPorcentagemRaw(e.target.value);
+                        const pct = parseFloat(e.target.value) || 0;
+                        const valCusto = (formData.valor_venda || 0) * (pct / 100);
+                        onChange({ valor_custo: valCusto });
+                      }}
+                      className="w-full bg-white border-2 border-slate-100 rounded-3xl px-6 py-5 pr-14 text-2xl font-black text-[#111827] outline-none focus:border-violet-500 transition-all shadow-inner"
+                    />
+                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl">%</span>
+                  </div>
+                </div>
+              )}
+
+              {consignacaoTipo === 'margem' && (
+                <div className="animate-in slide-in-from-top-2 duration-300">
+                  <label className="block text-[10px] font-black text-violet-400 uppercase mb-3 ml-1 tracking-widest">
+                    Margem Mínima da Loja (Lucro da Loja)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl">R$</span>
+                    <input
+                      type="text"
+                      value={margemRaw}
+                      onChange={e => {
+                        const masked = maskCurrency(e.target.value);
+                        setMargemRaw(masked);
+                        const margemNum = parseCurrencyToNumber(masked);
+                        const valCusto = Math.max(0, (formData.valor_venda || 0) - margemNum);
+                        onChange({ valor_custo: valCusto });
+                      }}
+                      className="w-full bg-white border-2 border-slate-100 rounded-3xl px-6 py-5 pl-14 text-2xl font-black text-[#111827] outline-none focus:border-violet-500 transition-all shadow-inner"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {consignacaoTipo === 'valor_minimo' && (
+                <div className="animate-in slide-in-from-top-2 duration-300">
+                  <label className="block text-[10px] font-black text-violet-400 uppercase mb-3 ml-1 tracking-widest">
+                    Valor Mínimo de Repasse (Fixo Proprietário)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl">R$</span>
+                    <input
+                      type="text"
+                      value={valorMinimoRaw}
+                      onChange={e => {
+                        const masked = maskCurrency(e.target.value);
+                        setValorMinimoRaw(masked);
+                        const valNum = parseCurrencyToNumber(masked);
+                        onChange({ valor_custo: valNum });
+                      }}
+                      className="w-full bg-white border-2 border-slate-100 rounded-3xl px-6 py-5 pl-14 text-2xl font-black text-[#111827] outline-none focus:border-violet-500 transition-all shadow-inner"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Resultado do Cálculo */}
+              <div className="p-5 bg-violet-50 rounded-[1.5rem] border border-violet-100 space-y-2">
+                <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">Resumo do Repasse Calculado</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-violet-700">Valor de Repasse (Custo):</span>
+                  <span className="text-lg font-black text-violet-900">
+                    {formatCurrency(formData.valor_custo || 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-[10px] text-violet-600/80">
+                  <span>Preço de Venda: {formatCurrency(formData.valor_venda || 0)}</span>
+                  <span>Lucro Bruto: {formatCurrency(Math.max(0, (formData.valor_venda || 0) - (formData.valor_custo || 0)))}</span>
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase mb-3 ml-1 tracking-widest">
+                Custo de Compra
+              </label>
+              <div className="relative">
+                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl">R$</span>
+                <input
+                  type="text"
+                  value={custoRaw}
+                  onChange={e => handleCurrencyChange(e.target.value, 'valor_custo')}
+                  className="w-full bg-white border-2 border-slate-100 rounded-3xl px-6 py-5 pl-14 text-2xl font-black text-[#111827] outline-none focus:border-indigo-500 transition-all shadow-inner"
+                />
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-[10px] font-black text-emerald-600 uppercase mb-3 ml-1 tracking-widest">Preço de Venda (Anúncio)</label>
             <div className="relative">

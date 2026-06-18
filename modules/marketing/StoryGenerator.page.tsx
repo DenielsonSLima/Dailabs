@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { EstoqueService } from '../estoque/estoque.service';
 import { EmpresaService } from '../ajustes/empresa/empresa.service';
 import { StorageService } from '../../lib/storage.service';
+import { supabase } from '../../lib/supabase';
 import MarketingVehicleSelection from './components/MarketingVehicleSelection';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -627,7 +628,7 @@ const StoryGeneratorPage: React.FC = () => {
             setExportProgress('Gerando arquivo...');
 
             // Download
-            canvas.toBlob((blob) => {
+            canvas.toBlob(async (blob) => {
                 if (!blob) {
                     alert('Erro ao gerar imagem.');
                     return;
@@ -638,6 +639,27 @@ const StoryGeneratorPage: React.FC = () => {
                 link.download = `story-${veiculo?.modelo?.nome || 'veiculo'}-${Date.now()}.png`;
                 link.click();
                 setTimeout(() => URL.revokeObjectURL(url), 3000);
+
+                // Upload background
+                try {
+                    const fileObj = new File([blob], `story-${veiculo?.id}-${Date.now()}.png`, { type: 'image/png' });
+                    const publicUrl = await StorageService.uploadImage(fileObj, 'veiculos', 'marketing-creatives');
+                    
+                    const { data: userData } = await supabase.auth.getUser();
+                    const orgId = userData.user?.app_metadata?.organization_id;
+                    if (orgId && veiculo?.id) {
+                        await supabase.from('mkt_creatives').insert({
+                            organization_id: orgId,
+                            veiculo_id: veiculo.id,
+                            url: publicUrl,
+                            tipo: 'STORY',
+                            created_by: userData.user?.id
+                        });
+                        console.log('Story creative saved:', publicUrl);
+                    }
+                } catch (uploadErr) {
+                    console.error('Erro ao salvar imagem do story no storage/banco:', uploadErr);
+                }
             }, 'image/png', 1.0);
 
         } catch (err) {

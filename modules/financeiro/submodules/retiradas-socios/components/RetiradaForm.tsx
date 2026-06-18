@@ -36,7 +36,11 @@ const RetiradaForm: React.FC<Props> = ({ editItem, onClose, onSuccess }) => {
       ContasBancariasService.getAll()
     ]).then(([sData, cData]) => {
       setSocios(sData.filter(s => s.ativo));
-      setContas(cData.filter(c => c.ativo));
+      const activeContas = cData.filter(c => c.ativo);
+      setContas(activeContas);
+      if (activeContas.length === 1) {
+        setFormData(prev => ({ ...prev, conta_origem_id: activeContas[0].id }));
+      }
     });
   }, []);
 
