@@ -36,6 +36,7 @@ export const FinanceiroService = {
 
   // ── CATEGORIAS ──
   getCategorias: CategoriasService.getCategorias,
+  saveCategoria: CategoriasService.saveCategoria,
 
   // ── HISTORICO UNIFICADO ──
   getHistoricoGeral: HistoricoService.getHistoricoGeral,

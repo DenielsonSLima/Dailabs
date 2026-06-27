@@ -8,13 +8,14 @@ interface Props {
   onEdit: () => void;
   onConfirm: () => void;
   onDelete: () => void;
-  onCancel?: () => void;
   loadingAction: boolean;
   canConfirm?: boolean;
 }
 
-const HeaderVenda: React.FC<Props> = ({ pedido, onBack, onEdit, onConfirm, onDelete, onCancel, loadingAction, canConfirm }) => {
+const HeaderVenda: React.FC<Props> = ({ pedido, onBack, onEdit, onConfirm, onDelete, loadingAction, canConfirm }) => {
   const isConcluido = pedido.status === 'CONCLUIDO';
+  const isCancelado = pedido.status === 'CANCELADO';
+  const isRascunho = pedido.status === 'RASCUNHO';
 
   return (
     <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm animate-in slide-in-from-top-4 duration-500">
@@ -47,16 +48,16 @@ const HeaderVenda: React.FC<Props> = ({ pedido, onBack, onEdit, onConfirm, onDel
         </div>
 
         <div className="flex items-center gap-3 w-full lg:w-auto justify-end border-t lg:border-t-0 border-slate-50 pt-4 lg:pt-0">
-          {!isConcluido && (
-            <>
-              <button
-                onClick={onDelete}
-                disabled={loadingAction}
-                className="px-6 py-4 text-rose-500 font-black text-xs uppercase tracking-widest rounded-xl hover:bg-rose-50 transition-all disabled:opacity-50"
-              >
-                Excluir
-              </button>
+          <button
+            onClick={onDelete}
+            disabled={loadingAction}
+            className="px-6 py-4 text-rose-500 font-black text-xs uppercase tracking-widest rounded-xl hover:bg-rose-50 transition-all disabled:opacity-50"
+          >
+            Excluir
+          </button>
 
+          {isRascunho && (
+            <>
               <button
                 onClick={onEdit}
                 disabled={loadingAction}
@@ -78,34 +79,16 @@ const HeaderVenda: React.FC<Props> = ({ pedido, onBack, onEdit, onConfirm, onDel
           )}
 
           {isConcluido && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={onCancel}
-                disabled={loadingAction}
-                className="px-6 py-4 text-rose-500 font-black text-xs uppercase tracking-widest rounded-xl hover:bg-rose-50 transition-all disabled:opacity-50"
-              >
-                Cancelar Venda
-              </button>
-              <div className="px-8 py-4 bg-emerald-50 text-emerald-600 font-black text-xs uppercase tracking-widest rounded-xl border border-emerald-100 flex items-center">
-                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M5 13l4 4L19 7" /></svg>
-                Venda Concluída
-              </div>
+            <div className="px-8 py-4 bg-emerald-50 text-emerald-600 font-black text-xs uppercase tracking-widest rounded-xl border border-emerald-100 flex items-center">
+              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M5 13l4 4L19 7" /></svg>
+              Venda Concluída
             </div>
           )}
 
-          {pedido.status === 'CANCELADO' && (
-            <>
-              <button
-                onClick={onDelete}
-                disabled={loadingAction}
-                className="px-6 py-4 text-rose-500 font-black text-xs uppercase tracking-widest rounded-xl hover:bg-rose-50 transition-all disabled:opacity-50"
-              >
-                Excluir Definitivamente
-              </button>
-              <div className="px-8 py-4 bg-rose-50 text-rose-600 font-black text-xs uppercase tracking-widest rounded-xl border border-rose-100 flex items-center text-center">
-                Venda Cancelada
-              </div>
-            </>
+          {isCancelado && (
+            <div className="px-8 py-4 bg-rose-50 text-rose-600 font-black text-xs uppercase tracking-widest rounded-xl border border-rose-100 flex items-center text-center">
+              Venda Cancelada
+            </div>
           )}
         </div>
       </div>

@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/auth.store';
+import { AuthService } from '../modules/auth/auth.service';
 
 interface ForcePasswordChangeModalProps {
     onSuccess: () => void;
     onLogout: () => void;
+    mode?: 'first_access' | 'recovery';
 }
 
-const ForcePasswordChangeModal: React.FC<ForcePasswordChangeModalProps> = ({ onSuccess, onLogout }) => {
+const ForcePasswordChangeModal: React.FC<ForcePasswordChangeModalProps> = ({ onSuccess, onLogout, mode = 'first_access' }) => {
     const { session, profile } = useAuthStore();
     const [senha, setSenha] = useState('');
     const [confirmSenha, setConfirmSenha] = useState('');
@@ -49,19 +51,15 @@ const ForcePasswordChangeModal: React.FC<ForcePasswordChangeModalProps> = ({ onS
         setLoading(true);
 
         try {
-            // 1. Atualizar a senha no Supabase Auth
-            const { error: updateAuthError } = await supabase.auth.updateUser({
-                password: senha
-            });
-
-            if (updateAuthError) throw updateAuthError;
+            await AuthService.updateCurrentUserPassword(senha);
 
             // 2. Atualizar o profile para tirar a flag de force_password_change
-            if (profile?.id) {
+            const profileId = profile?.id || session?.user?.id;
+            if (profileId) {
                 const { error: profileError } = await supabase
                     .from('profiles')
                     .update({ force_password_change: false })
-                    .eq('id', profile.id);
+                    .eq('id', profileId);
 
                 if (profileError) throw profileError;
             }
@@ -90,10 +88,12 @@ const ForcePasswordChangeModal: React.FC<ForcePasswordChangeModalProps> = ({ onS
                     </div>
 
                     <h2 className="text-2xl font-black text-white tracking-tighter uppercase relative z-10">
-                        Segurança em 1º Lugar
+                        {mode === 'recovery' ? 'Redefinir Senha' : 'Segurança em 1º Lugar'}
                     </h2>
                     <p className="text-indigo-100 text-sm mt-2 text-center relative z-10 opacity-90">
-                        Bem-vindo! Para sua segurança, é obrigatório criar uma nova senha no seu primeiro acesso.
+                        {mode === 'recovery'
+                            ? 'Crie uma nova senha para voltar a acessar o sistema com segurança.'
+                            : 'Bem-vindo! Para sua segurança, é obrigatório criar uma nova senha no seu primeiro acesso.'}
                     </p>
                 </div>
 

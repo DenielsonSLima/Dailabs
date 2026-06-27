@@ -34,9 +34,22 @@ const FormUsuario: React.FC<FormUsuarioProps> = ({ initialData, onSubmit, onCanc
 
   useEffect(() => {
     if (initialData) {
-      setFormData(initialData);
-      setConfirmSenha(initialData.senha || '');
+      setFormData({ ...initialData, senha: '' });
+      setConfirmSenha('');
+      return;
     }
+
+    setFormData({
+      nome: '',
+      sobrenome: '',
+      cpf: '',
+      email: '',
+      senha: '',
+      telefone: '',
+      role: 'OPERADOR',
+      ativo: true
+    });
+    setConfirmSenha('');
   }, [initialData]);
 
   const getPasswordStrength = (pwd: string) => {
@@ -82,6 +95,11 @@ const FormUsuario: React.FC<FormUsuarioProps> = ({ initialData, onSubmit, onCanc
 
     if (initialData && formData.senha && formData.senha !== confirmSenha) {
       alert('As senhas não coincidem!');
+      return;
+    }
+
+    if (!initialData && !formData.nome) {
+      alert('Nome é obrigatório para cadastrar o usuário.');
       return;
     }
 

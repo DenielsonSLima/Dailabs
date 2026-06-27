@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PedidosVendaService } from './pedidos-venda.service';
+import { invalidatePedidoVendaDetails, invalidatePedidosVendaOverview } from './pedidos-venda.query-invalidation';
 import { IPedidoVenda } from './pedidos-venda.types';
 import { CorretoresService } from '../cadastros/corretores/corretores.service';
 import { FormasPagamentoService } from '../cadastros/formas-pagamento/formas-pagamento.service';
@@ -73,9 +74,8 @@ const VendaFormPage: React.FC = () => {
   const saveMutation = useMutation({
     mutationFn: (data: Partial<IPedidoVenda>) => PedidosVendaService.save(data),
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['pedidos_venda_list'] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_venda_stats'] });
-      queryClient.invalidateQueries({ queryKey: ['pedido_venda_detalhes', result.id] });
+      invalidatePedidosVendaOverview(queryClient);
+      invalidatePedidoVendaDetails(queryClient, result.id);
       navigate(`/pedidos-venda/${result.id}`);
     },
     onError: (err: any) => {

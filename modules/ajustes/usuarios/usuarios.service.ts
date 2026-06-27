@@ -38,16 +38,17 @@ export const UsuariosService = {
    */
   async save(usuario: Partial<IUsuario>): Promise<{ tempPassword?: string } | void> {
     const isNew = !usuario.id;
+    const email = usuario.email?.trim().toLowerCase();
 
     if (isNew) {
-      if (!usuario.email) {
+      if (!email) {
         throw new Error("E-mail é obrigatório para criar um novo usuário.");
       }
 
       // 1. Chamar a Edge Function 'admin-create-user' para não sobrescrever a sessão atual
       const { data: authData, error: authError } = await supabase.functions.invoke('admin-create-user', {
         body: {
-          email: usuario.email,
+          email,
           nome: usuario.nome,
           sobrenome: usuario.sobrenome,
           telefone: usuario.telefone,
@@ -70,41 +71,27 @@ export const UsuariosService = {
       return { tempPassword: authData.tempPassword };
 
     } else {
-      // Atualização de usuário existente
-      // Se houver senha, usamos a Edge Function admin-update-user
-      if (usuario.senha) {
-        const { error: authError } = await supabase.functions.invoke('admin-update-user', {
-          body: {
-            id: usuario.id,
-            password: usuario.senha,
-            nome: usuario.nome,
-            sobrenome: usuario.sobrenome,
-            cpf: usuario.cpf,
-            telefone: usuario.telefone,
-            role: usuario.role,
-            ativo: usuario.ativo !== undefined ? usuario.ativo : true
-          }
-        });
-
-        if (authError) {
-          console.error("Edge Function Update Error:", authError);
-          throw new Error(`Erro ao atualizar senha/dados do usuário: ${authError.message}`);
+      const { data, error } = await supabase.functions.invoke('admin-update-user', {
+        body: {
+          userId: usuario.id,
+          email,
+          password: usuario.senha || undefined,
+          nome: usuario.nome,
+          sobrenome: usuario.sobrenome,
+          cpf: usuario.cpf,
+          telefone: usuario.telefone,
+          role: usuario.role,
+          ativo: usuario.ativo !== undefined ? usuario.ativo : true
         }
-      } else {
-        // Se NÃO houver senha, atualizamos apenas o profile (comportamento original mantido para performance)
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            nome: usuario.nome,
-            sobrenome: usuario.sobrenome,
-            cpf: usuario.cpf,
-            telefone: usuario.telefone,
-            role: usuario.role,
-            ativo: usuario.ativo !== undefined ? usuario.ativo : true
-          })
-          .eq('id', usuario.id);
+      });
 
-        if (error) throw error;
+      if (error) {
+        console.error("Edge Function Update Error:", error);
+        throw new Error(`Erro ao atualizar usuário: ${error.message}`);
+      }
+
+      if (data?.error) {
+        throw new Error(`Erro ao atualizar usuário: ${data.error}`);
       }
     }
   },

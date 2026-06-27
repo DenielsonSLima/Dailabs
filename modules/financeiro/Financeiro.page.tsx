@@ -13,15 +13,18 @@ import OutrosDebitosPage from './submodules/outros-debitos/OutrosDebitos.page';
 import RetiradasSociosPage from './submodules/retiradas-socios/RetiradasSocios.page';
 import TransferenciasPage from './submodules/transferencias/Transferencias.page';
 import ExtratoPage from './submodules/extrato/Extrato.page';
+import AjustesFinanceiroPage from './submodules/ajustes/AjustesFinanceiro.page';
+import { AjustesCentralService } from '../ajustes/ajustes.service';
 
 type SubModule =
-  | 'GERAL' | 'PAGAR' | 'RECEBER' | 'VARIAVEIS' | 'FIXAS'
-  | 'CREDITOS' | 'DEBITOS' | 'RETIRADAS' | 'TRANSF' | 'HISTORICO';
+  | 'GERAL' | 'PAGAR' | 'RECEBER' | 'DESPESAS' | 'VARIAVEIS' | 'FIXAS'
+  | 'CREDITOS' | 'DEBITOS' | 'RETIRADAS' | 'TRANSF' | 'HISTORICO' | 'AJUSTES';
 
 const FinanceiroPage: React.FC = () => {
   const [activeSub, setActiveSub] = useState<SubModule>('GERAL');
   const [kpis, setKpis] = useState<IFinanceiroKpis | null>(null);
   const [loading, setLoading] = useState(true);
+  const [modoDespesaUnica, setModoDespesaUnica] = useState(false);
 
   useEffect(() => {
     loadKpis();
@@ -40,6 +43,29 @@ const FinanceiroPage: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    AjustesCentralService.getSettings('financeiro').then(data => {
+      setModoDespesaUnica(!!data?.modo_despesa_unica);
+    });
+
+    const handleSettingsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      setModoDespesaUnica(!!detail?.modo_despesa_unica);
+    };
+
+    window.addEventListener('dailabs-financeiro-settings-updated', handleSettingsUpdated);
+    return () => window.removeEventListener('dailabs-financeiro-settings-updated', handleSettingsUpdated);
+  }, []);
+
+  useEffect(() => {
+    if (modoDespesaUnica && (activeSub === 'FIXAS' || activeSub === 'VARIAVEIS')) {
+      setActiveSub('DESPESAS');
+    }
+    if (!modoDespesaUnica && activeSub === 'DESPESAS') {
+      setActiveSub('VARIAVEIS');
+    }
+  }, [modoDespesaUnica, activeSub]);
+
   async function loadKpis(silent = false) {
     if (!silent) setLoading(true);
     try {
@@ -52,14 +78,19 @@ const FinanceiroPage: React.FC = () => {
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  const totalDespesas = (kpis?.despesas_fixas || 0) + (kpis?.despesas_variaveis || 0);
 
   // Definição do Menu conforme a ordem solicitada
   const line1: { id: SubModule; label: string; icon: string; color: string }[] = [
     { id: 'GERAL', label: 'Dashboard', icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z', color: 'indigo' },
     { id: 'PAGAR', label: 'Contas a Pagar', icon: 'M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z', color: 'rose' },
     { id: 'RECEBER', label: 'Contas a Receber', icon: 'M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z', color: 'emerald' },
-    { id: 'VARIAVEIS', label: 'Despesas Variáveis', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9', color: 'orange' },
-    { id: 'FIXAS', label: 'Despesas Fixas', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16', color: 'slate' },
+    ...(modoDespesaUnica
+      ? [{ id: 'DESPESAS' as SubModule, label: 'Despesas', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9', color: 'orange' }]
+      : [
+        { id: 'VARIAVEIS' as SubModule, label: 'Despesas Variáveis', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9', color: 'orange' },
+        { id: 'FIXAS' as SubModule, label: 'Despesas Fixas', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16', color: 'slate' },
+      ]),
   ];
 
   const line2: { id: SubModule; label: string; icon: string; color: string }[] = [
@@ -68,6 +99,7 @@ const FinanceiroPage: React.FC = () => {
     { id: 'RETIRADAS', label: 'Retiradas', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2', color: 'amber' },
     { id: 'TRANSF', label: 'Transferências entre Contas', icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4', color: 'blue' },
     { id: 'HISTORICO', label: 'Histórico Geral', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2', color: 'slate' },
+    { id: 'AJUSTES', label: 'Ajustes', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35', color: 'indigo' },
   ];
 
   const renderMenuItem = (item: any) => (
@@ -114,25 +146,27 @@ const FinanceiroPage: React.FC = () => {
           </div>
           {/* Despesas Fixas do Mês */}
           <div className="bg-white rounded-2xl px-5 py-4 border border-slate-200 shadow-sm">
-            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Despesas Fixas</p>
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-0.5">{modoDespesaUnica ? 'Despesas' : 'Despesas Fixas'}</p>
             {loading ? (
               <div className="h-7 bg-slate-200 rounded animate-pulse w-32"></div>
             ) : (
-              <h3 className="text-xl font-black text-slate-900 tracking-tight">{formatCurrency(kpis?.despesas_fixas || 0)}</h3>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">{formatCurrency(modoDespesaUnica ? totalDespesas : (kpis?.despesas_fixas || 0))}</h3>
             )}
           </div>
         </div>
         {/* Linha 2 */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           {/* Despesas Variáveis do Mês */}
-          <div className="bg-white rounded-2xl px-5 py-4 border border-slate-200 shadow-sm">
-            <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-0.5">Despesas Variáveis</p>
-            {loading ? (
-              <div className="h-7 bg-slate-200 rounded animate-pulse w-32"></div>
-            ) : (
-              <h3 className="text-xl font-black text-slate-900 tracking-tight">{formatCurrency(kpis?.despesas_variaveis || 0)}</h3>
-            )}
-          </div>
+          {!modoDespesaUnica && (
+            <div className="bg-white rounded-2xl px-5 py-4 border border-slate-200 shadow-sm">
+              <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-0.5">Despesas Variáveis</p>
+              {loading ? (
+                <div className="h-7 bg-slate-200 rounded animate-pulse w-32"></div>
+              ) : (
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">{formatCurrency(kpis?.despesas_variaveis || 0)}</h3>
+              )}
+            </div>
+          )}
           {/* Outras Receitas */}
           <div className="bg-white rounded-2xl px-5 py-4 border border-slate-200 shadow-sm">
             <p className="text-[9px] font-black text-teal-500 uppercase tracking-widest mb-0.5">Outras Receitas</p>
@@ -180,6 +214,7 @@ const FinanceiroPage: React.FC = () => {
         {activeSub === 'GERAL' && <VisaoGeralPage />}
         {activeSub === 'PAGAR' && <ContasPagarPage />}
         {activeSub === 'RECEBER' && <ContasReceberPage />}
+        {activeSub === 'DESPESAS' && <DespesasVariaveisPage modoUnificado />}
         {activeSub === 'VARIAVEIS' && <DespesasVariaveisPage />}
         {activeSub === 'FIXAS' && <DespesasFixasPage />}
         {activeSub === 'CREDITOS' && <OutrosCreditosPage />}
@@ -187,6 +222,7 @@ const FinanceiroPage: React.FC = () => {
         {activeSub === 'RETIRADAS' && <RetiradasSociosPage />}
         {activeSub === 'TRANSF' && <TransferenciasPage />}
         {activeSub === 'HISTORICO' && <ExtratoPage />}
+        {activeSub === 'AJUSTES' && <AjustesFinanceiroPage />}
       </div>
 
     </div>

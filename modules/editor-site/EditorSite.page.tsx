@@ -208,6 +208,30 @@ const EditorSitePage: React.FC = () => {
             title="Banner / Slides do Hero"
           />
 
+          <div className="mb-8 rounded-3xl border border-slate-200 bg-slate-50 p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <div>
+              <p className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-1">Origem do destaque</p>
+              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter">Primeira dobra do site</h3>
+              <p className="text-xs font-bold text-slate-500 mt-1">Use os slides cadastrados ou troque automaticamente pelas fotos principais dos veículos publicados no estoque.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 bg-white border border-slate-200 rounded-2xl p-1.5 shadow-sm min-w-[280px]">
+              <button
+                type="button"
+                onClick={() => update('hero_source', 'slides')}
+                className={`px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${conteudo.hero_source !== 'estoque' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-700'}`}
+              >
+                Slides
+              </button>
+              <button
+                type="button"
+                onClick={() => update('hero_source', 'estoque')}
+                className={`px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${conteudo.hero_source === 'estoque' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-700'}`}
+              >
+                Estoque
+              </button>
+            </div>
+          </div>
+
           <div className="space-y-6">
             {conteudo.hero_slides.map((slide, index) => (
               <div key={index} className="relative bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4 group">

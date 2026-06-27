@@ -3,10 +3,12 @@ import React, { useState } from 'react';
 
 interface LoginFormProps {
   onSubmit: (email: string, pass: string) => void;
+  onForgotPassword: (email: string) => void;
   isLoading: boolean;
+  isResetLoading: boolean;
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, onForgotPassword, isLoading, isResetLoading }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -78,7 +80,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading }) => {
           <input type="checkbox" className="w-4 h-4 rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0" />
           <span className="text-xs font-bold text-white/60 group-hover:text-white transition-colors">Lembrar acesso</span>
         </label>
-        <button type="button" className="text-xs font-black text-white/80 hover:text-white hover:underline uppercase tracking-tighter transition-colors">Esqueceu a senha?</button>
+        <button
+          type="button"
+          onClick={() => onForgotPassword(email)}
+          disabled={isResetLoading || isLoading}
+          className="text-xs font-black text-white/80 hover:text-white hover:underline uppercase tracking-tighter transition-colors disabled:opacity-50"
+        >
+          {isResetLoading ? 'Enviando...' : 'Esqueceu a senha?'}
+        </button>
       </div>
 
       <button

@@ -1,6 +1,36 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { AjustesCentralService } from '../../../ajustes/ajustes.service';
+
+interface FinanceiroSettings {
+   modo_despesa_unica?: boolean;
+}
 
 const AjustesFinanceiroPage: React.FC = () => {
+   const [settings, setSettings] = useState<FinanceiroSettings>({});
+   const [saving, setSaving] = useState(false);
+
+   useEffect(() => {
+      AjustesCentralService.getSettings('financeiro').then(data => {
+         if (data) setSettings(data);
+      });
+   }, []);
+
+   const handleToggleDespesaUnica = async () => {
+      const nextSettings = {
+         ...settings,
+         modo_despesa_unica: !settings.modo_despesa_unica
+      };
+
+      setSaving(true);
+      try {
+         const saved = await AjustesCentralService.updateSettings('financeiro', nextSettings);
+         setSettings(saved);
+         window.dispatchEvent(new CustomEvent('dailabs-financeiro-settings-updated', { detail: saved }));
+      } finally {
+         setSaving(false);
+      }
+   };
+
    return (
       <div className="space-y-6">
          <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
@@ -12,6 +42,22 @@ const AjustesFinanceiroPage: React.FC = () => {
                   <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">Ajustes & Configurações</h2>
                   <p className="text-slate-500 text-xs mt-2 uppercase font-bold tracking-widest">Plano de Contas e Regras de Negócio</p>
                </div>
+            </div>
+
+            <div className="mb-8 rounded-[2rem] border border-slate-200 bg-slate-50 p-6 flex flex-col md:flex-row md:items-center justify-between gap-5">
+               <div>
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Despesa única no Financeiro</h4>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase mt-1 leading-relaxed">Oculta a divisão visual entre despesas fixas e variáveis no menu financeiro.</p>
+               </div>
+               <button
+                  type="button"
+                  onClick={handleToggleDespesaUnica}
+                  disabled={saving}
+                  className={`relative w-16 h-9 rounded-full transition-all disabled:opacity-60 ${settings.modo_despesa_unica ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                  aria-label="Alternar despesa única no financeiro"
+               >
+                  <span className={`absolute top-1 h-7 w-7 rounded-full bg-white shadow-lg transition-all ${settings.modo_despesa_unica ? 'left-8' : 'left-1'}`}></span>
+               </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

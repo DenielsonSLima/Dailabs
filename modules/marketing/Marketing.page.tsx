@@ -654,7 +654,7 @@ const MarketingPage: React.FC = () => {
         ))}
 
         {/* Botão Novo Anúncio (sempre visível) */}
-        <button onClick={() => setShowWizard(true)}
+        <button onClick={() => navigate('/marketing/anuncios/novo')}
           className="ml-auto flex items-center gap-2 px-5 py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:opacity-90 transition-all"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -679,7 +679,7 @@ const MarketingPage: React.FC = () => {
                 </div>
                 <h3 className="font-black text-slate-700 text-lg">Nenhum anúncio ativo</h3>
                 <p className="text-sm text-slate-400 mt-1 max-w-xs">Crie seu primeiro anúncio para começar a divulgar seus veículos.</p>
-                <button onClick={() => setShowWizard(true)} className="mt-5 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-black text-xs shadow hover:opacity-90 transition-all uppercase tracking-widest">
+                <button onClick={() => navigate('/marketing/anuncios/novo')} className="mt-5 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-black text-xs shadow hover:opacity-90 transition-all uppercase tracking-widest">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                   Criar Primeiro Anúncio
                 </button>
@@ -726,7 +726,7 @@ const MarketingPage: React.FC = () => {
                         <h3 className="font-black text-slate-900 text-sm truncate">{v.montadora?.nome} {v.modelo?.nome}</h3>
                         <p className="text-[11px] text-slate-400">{v.ano_modelo} · {v.km?.toLocaleString('pt-BR')} km</p>
                         {v.valor_venda && <p className="text-sm font-black text-emerald-600 mt-1">{MarketingAdsService.formatarMoeda(v.valor_venda)}</p>}
-                        <button onClick={() => setShowWizard(true)}
+                        <button onClick={() => navigate('/marketing/anuncios/novo')}
                           disabled={jaAnunciado}
                           className="w-full mt-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow hover:opacity-90"
                         >

@@ -1,17 +1,23 @@
-const API_BRASIL_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL2tleWNsb2FrL2V4Y2hhbmdlIiwiaWF0IjoxNzc2MzEzNTk5LCJleHAiOjE4MDc4NDk1OTksIm5iZiI6MTc3NjMxMzU5OSwianRpIjoiUXo2bHlGaFJJeHYzWFAxNyIsInN1YiI6IjIxODA3In0.L2ZlLKXoZAYbu-0kjlqW32FxySDP-rtRv6TfncDRM8Q";
-const placa = "SYA7J13";
+const API_BRASIL_TOKEN = process.env.API_BRASIL_TOKEN;
+const API_BRASIL_ENDPOINT = process.env.API_BRASIL_ENDPOINT || 'https://gateway.apibrasil.io/api/v2/consulta/veiculos/credits';
+const API_BRASIL_TIPO_CONSULTA = process.env.API_BRASIL_TIPO_CONSULTA || 'fipe-chassi';
+const placa = process.env.TEST_PLACA || 'SYA7J13';
 
 async function testApiBrasil() {
+    if (!API_BRASIL_TOKEN) {
+        throw new Error('Defina API_BRASIL_TOKEN no ambiente antes de executar este teste.');
+    }
+
     console.log(`Testando placa: ${placa}`);
     try {
-        const response = await fetch('https://gateway.apibrasil.io/api/v2/consulta/veiculos/credits', {
+        const response = await fetch(API_BRASIL_ENDPOINT, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${API_BRASIL_TOKEN}`
             },
             body: JSON.stringify({
-                tipo: 'fipe-chassi',
+                tipo: API_BRASIL_TIPO_CONSULTA,
                 placa: placa,
                 homolog: false
             })

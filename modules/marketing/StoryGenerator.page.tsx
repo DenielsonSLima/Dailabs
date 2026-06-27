@@ -84,6 +84,48 @@ function drawCover(
     ctx.drawImage(img, srcX, srcY, srcW, srcH, dx, dy, dw, dh);
 }
 
+function formatVehiclePrice(value: number): string {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        maximumFractionDigits: 0
+    }).format(value);
+}
+
+function drawPriceBadge(ctx: CanvasRenderingContext2D, width: number, height: number, priceText: string, scale: number) {
+    const margin = 22 * scale;
+    const label = 'VALOR DE VENDA';
+    const badgeH = 54 * scale;
+
+    ctx.save();
+    ctx.textAlign = 'right';
+    ctx.font = `900 ${24 * scale}px "Inter", system-ui`;
+    const priceW = ctx.measureText(priceText).width;
+    ctx.font = `900 ${7 * scale}px "Inter", system-ui`;
+    const labelW = ctx.measureText(label).width;
+
+    const badgeW = Math.min(width - margin * 2, Math.max(priceW, labelW) + 24 * scale);
+    const x = width - margin - badgeW;
+    const y = height - margin - badgeH;
+
+    ctx.fillStyle = 'rgba(15,23,42,0.72)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.30)';
+    ctx.lineWidth = 1 * scale;
+    ctx.beginPath();
+    ctx.roundRect(x, y, badgeW, badgeH, 14 * scale);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
+    ctx.font = `900 ${7 * scale}px "Inter", system-ui`;
+    ctx.fillText(label, width - margin - 12 * scale, y + 18 * scale);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `900 ${24 * scale}px "Inter", system-ui`;
+    ctx.fillText(priceText, width - margin - 12 * scale, y + 43 * scale);
+    ctx.restore();
+}
+
 // ─── Componente Principal ───────────────────────────────────────────────────────
 
 const StoryGeneratorPage: React.FC = () => {
@@ -410,18 +452,7 @@ const StoryGeneratorPage: React.FC = () => {
 
         // ─── Preço de Venda ───────────────────────────────────────────────────
         if (showPrice && veiculo?.valor_venda) {
-            const px = 22 * DPI;
-            const priceY = H - 110 * DPI;
-            const priceText = new Intl.NumberFormat('pt-BR', { 
-                style: 'currency', 
-                currency: 'BRL',
-                maximumFractionDigits: 0 
-            }).format(veiculo.valor_venda);
-
-            octx.textAlign = 'right';
-            octx.fillStyle = '#ffffff';
-            octx.font = `900 ${28 * DPI}px "Inter", system-ui`;
-            octx.fillText(priceText, W - px, priceY + 8 * DPI);
+            drawPriceBadge(octx, W, H, formatVehiclePrice(veiculo.valor_venda), DPI);
         }
 
         // Copia offscreen para o canvas visível (atomic — sem flash)
@@ -612,16 +643,7 @@ const StoryGeneratorPage: React.FC = () => {
 
                 // ─── Preço de Venda (Export) ──────────────────────────────────
                 if (showPrice && veiculo.valor_venda) {
-                    const priceText = new Intl.NumberFormat('pt-BR', { 
-                        style: 'currency', 
-                        currency: 'BRL',
-                        maximumFractionDigits: 0 
-                    }).format(veiculo.valor_venda);
-
-                    ctx.textAlign = 'right';
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = `900 ${28 * scale}px "Inter", system-ui`;
-                    ctx.fillText(priceText, EXPORT_W - px, infoY + 8 * scale);
+                    drawPriceBadge(ctx, EXPORT_W, EXPORT_H, formatVehiclePrice(veiculo.valor_venda), scale);
                 }
             }
 

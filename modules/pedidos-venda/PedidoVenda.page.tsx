@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PedidosVendaService } from './pedidos-venda.service';
+import { PedidosVendaRealtime } from './pedidos-venda.realtime';
+import { invalidatePedidosVendaOverview } from './pedidos-venda.query-invalidation';
 import { IVendaFiltros, VendaTab } from './pedidos-venda.types';
 import PedidosVendaList from './components/PedidosVendaList';
 import PedidosVendaFilters from './components/PedidosVendaFilters';
@@ -53,10 +55,8 @@ const PedidoVendaPage: React.FC = () => {
 
   // Real-time Subscription
   useEffect(() => {
-    const sub = PedidosVendaService.subscribe(() => {
-      queryClient.invalidateQueries({ queryKey: ['pedidos_venda_list'] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_venda_stats'] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_venda_draft_count'] });
+    const sub = PedidosVendaRealtime.subscribe(() => {
+      invalidatePedidosVendaOverview(queryClient);
     });
     return () => {
       sub.unsubscribe();

@@ -1,6 +1,5 @@
 
 import { supabase } from '../../lib/supabase';
-import { AuthMode } from './auth.types';
 
 export const AuthService = {
   async signIn(email: string, senha: string) {
@@ -35,6 +34,23 @@ export const AuthService = {
         data: { nome }
       }
     });
+    if (error) throw error;
+    return data;
+  },
+
+  async sendPasswordReset(email: string) {
+    const redirectTo = `${window.location.origin}/login`;
+
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
+  async updateCurrentUserPassword(password: string) {
+    const { data, error } = await supabase.auth.updateUser({ password });
     if (error) throw error;
     return data;
   },

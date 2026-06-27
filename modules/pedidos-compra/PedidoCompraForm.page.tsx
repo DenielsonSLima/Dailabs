@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PedidosCompraService } from './pedidos-compra.service';
+import { invalidatePedidoCompraDetails, invalidatePedidosCompraOverview } from './pedidos-compra.query-invalidation';
 import { IPedidoCompra } from './pedidos-compra.types';
 import { CorretoresService } from '../cadastros/corretores/corretores.service';
 import { FormasPagamentoService } from '../cadastros/formas-pagamento/formas-pagamento.service';
@@ -69,9 +70,8 @@ const PedidoCompraFormPage: React.FC = () => {
   const saveMutation = useMutation({
     mutationFn: (data: Partial<IPedidoCompra>) => PedidosCompraService.save(data),
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_list'] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_stats'] });
-      queryClient.invalidateQueries({ queryKey: ['pedido_compra_detalhes', result.id] });
+      invalidatePedidosCompraOverview(queryClient);
+      invalidatePedidoCompraDetails(queryClient, result.id);
       navigate(`/pedidos-compra/${result.id}`);
     },
     onError: (err: any) => {

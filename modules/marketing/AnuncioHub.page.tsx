@@ -8,6 +8,11 @@ import {
   IMktCampanha,
   IMktIntegracao,
 } from './marketing-ads.service';
+import {
+  invalidateMarketingCampanhas,
+  invalidateMarketingIntegracoes,
+  marketingQueryKeys,
+} from './marketing.query-invalidation';
 import PlataformaConnect from './components/PlataformaConnect';
 import CampanhaCard from './components/CampanhaCard';
 
@@ -29,12 +34,12 @@ const AnuncioHubPage: React.FC = () => {
   // ── Queries ────────────────────────────────────────────────────────────────
 
   const { data: campanhas = [], isLoading: loadingCampanhas } = useQuery({
-    queryKey: ['mkt_campanhas'],
+    queryKey: marketingQueryKeys.campanhas,
     queryFn: () => MarketingAdsService.getCampanhas(),
   });
 
   const { data: integracoes = [], isLoading: loadingIntegracoes } = useQuery({
-    queryKey: ['mkt_integracoes'],
+    queryKey: marketingQueryKeys.integracoes,
     queryFn: () => MarketingAdsService.getIntegracoes(),
   });
 
@@ -43,7 +48,7 @@ const AnuncioHubPage: React.FC = () => {
   const pausarMutation = useMutation({
     mutationFn: (id: string) => MarketingAdsService.updateCampanhaStatus(id, 'PAUSADO'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mkt_campanhas'] });
+      invalidateMarketingCampanhas(queryClient);
       toast.success('Campanha pausada!');
     },
     onError: () => toast.error('Erro ao pausar campanha.'),
@@ -52,7 +57,7 @@ const AnuncioHubPage: React.FC = () => {
   const excluirMutation = useMutation({
     mutationFn: (id: string) => MarketingAdsService.deleteCampanha(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mkt_campanhas'] });
+      invalidateMarketingCampanhas(queryClient);
       toast.success('Campanha removida!');
     },
     onError: () => toast.error('Erro ao remover campanha.'),
@@ -61,7 +66,7 @@ const AnuncioHubPage: React.FC = () => {
   const desconectarMutation = useMutation({
     mutationFn: (id: string) => MarketingAdsService.desconectarIntegracao(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mkt_integracoes'] });
+      invalidateMarketingIntegracoes(queryClient);
       toast.success('Conta desconectada!');
     },
     onError: () => toast.error('Erro ao desconectar conta.'),
@@ -70,7 +75,7 @@ const AnuncioHubPage: React.FC = () => {
   const conectarMutation = useMutation({
     mutationFn: (payload: Partial<IMktIntegracao>) => MarketingAdsService.saveIntegracao(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mkt_integracoes'] });
+      invalidateMarketingIntegracoes(queryClient);
       toast.success('Conta conectada com sucesso!');
       setShowConnectModal(false);
       setConnectForm({ account_name: '', ad_account_id: '', access_token: '', saldo_disponivel: '' });
@@ -110,11 +115,11 @@ const AnuncioHubPage: React.FC = () => {
       imagem_url: foto,
       orcamento: campanha.orcamento_diario ?? undefined,
     });
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
 
     // Atualiza status para ATIVO
     MarketingAdsService.updateCampanhaStatus(campanha.id, 'ATIVO').then(() => {
-      queryClient.invalidateQueries({ queryKey: ['mkt_campanhas'] });
+      invalidateMarketingCampanhas(queryClient);
     });
   };
 

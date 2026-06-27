@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { IHeroSlide } from '../../editor-site/editor-site.types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { IHeroSlide, HeroSource } from '../../editor-site/editor-site.types';
+import { IVeiculoPublic } from '../site-publico.types';
+import { formatCurrency } from '../utils/currency';
 
 // Slides padrão (fallback se não houver dados do banco)
 const DEFAULT_SLIDES: IHeroSlide[] = [
@@ -22,6 +24,14 @@ const DEFAULT_SLIDES: IHeroSlide[] = [
 
 interface Props {
   slides?: IHeroSlide[];
+  veiculos?: IVeiculoPublic[];
+  source?: HeroSource;
+}
+
+interface IHeroDisplaySlide extends IHeroSlide {
+  badge?: string;
+  ctaLabel?: string;
+  href?: string;
 }
 
 /**
@@ -36,17 +46,65 @@ const cleanBranding = (text: string) => {
     .replace(/HCV/gi, 'Souza');
 };
 
-const PublicHero: React.FC<Props> = ({ slides: propSlides }) => {
-  // Aplicando sanitização nos slides que vêm do banco de dados
-  const rawSlides = propSlides && propSlides.length > 0 ? propSlides : DEFAULT_SLIDES;
-  const slides = rawSlides.map(s => ({
-    ...s,
-    title: cleanBranding(s.title),
-    subtitle: cleanBranding(s.subtitle)
-  }));
+const getMainPhotoUrl = (veiculo: IVeiculoPublic) => {
+  const fotos = [...(veiculo.fotos || [])];
+  fotos.sort((a, b) => {
+    if (a.is_capa !== b.is_capa) return a.is_capa ? -1 : 1;
+    return (a.ordem || 0) - (b.ordem || 0);
+  });
+  return fotos[0]?.url || '';
+};
+
+const buildVehicleSlide = (veiculo: IVeiculoPublic): IHeroDisplaySlide | null => {
+  const imageUrl = getMainPhotoUrl(veiculo);
+  if (!imageUrl) return null;
+
+  const nome = [veiculo.montadora?.nome, veiculo.modelo?.nome].filter(Boolean).join(' ');
+  const detalhes = [
+    veiculo.versao?.nome,
+    veiculo.motorizacao,
+    veiculo.combustivel,
+    `${veiculo.ano_fabricacao}/${veiculo.ano_modelo}`,
+    `${(veiculo.km || 0).toLocaleString('pt-BR')} km`
+  ].filter(Boolean).join(' • ');
+
+  return {
+    image_url: imageUrl,
+    title: nome || 'Veículo em Destaque',
+    subtitle: `${detalhes}${detalhes ? ' • ' : ''}${formatCurrency(veiculo.valor_promocional || veiculo.valor_venda || 0)}`,
+    badge: 'Destaque do Estoque',
+    ctaLabel: 'Ver Veículo',
+    href: `/veiculo/${veiculo.id}`
+  };
+};
+
+const PublicHero: React.FC<Props> = ({ slides: propSlides, veiculos = [], source = 'slides' }) => {
+  const slides = useMemo(() => {
+    const vehicleSlides = source === 'estoque'
+      ? veiculos.map(buildVehicleSlide).filter(Boolean).slice(0, 5) as IHeroDisplaySlide[]
+      : [];
+
+    const rawSlides: IHeroDisplaySlide[] = vehicleSlides.length > 0
+      ? vehicleSlides
+      : ((propSlides && propSlides.length > 0 ? propSlides : DEFAULT_SLIDES) as IHeroDisplaySlide[]);
+
+    return rawSlides.map(s => ({
+      ...s,
+      title: cleanBranding(s.title),
+      subtitle: cleanBranding(s.subtitle),
+      badge: s.badge || 'Souza Veículos • Veículos Premium',
+      ctaLabel: s.ctaLabel || 'Ver Estoque',
+      href: s.href || '#estoque'
+    }));
+  }, [propSlides, source, veiculos]);
 
   const [current, setCurrent] = useState(0);
   const [loadedSlides, setLoadedSlides] = useState<Set<number>>(new Set([0]));
+
+  useEffect(() => {
+    setCurrent(0);
+    setLoadedSlides(new Set([0]));
+  }, [slides]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -100,7 +158,7 @@ const PublicHero: React.FC<Props> = ({ slides: propSlides }) => {
                   <div className="max-w-7xl mx-auto px-6 w-full">
                     <div className={`max-w-2xl transition-all duration-1000 ${index === current ? 'translate-x-0 opacity-100' : '-translate-x-20 opacity-0'}`}>
                       <div className="bg-black/40 backdrop-blur-sm rounded-2xl p-8 space-y-4">
-                        <p className="text-orange-500 text-xs font-black uppercase tracking-[0.5em]">Souza Veículos • Veículos Premium</p>
+                        <p className="text-orange-500 text-xs font-black uppercase tracking-[0.5em]">{slide.badge}</p>
                         <h1 className="text-4xl md:text-5xl font-black text-white leading-tight tracking-tighter uppercase drop-shadow-2xl">
                           {slide.title}
                         </h1>
@@ -108,8 +166,8 @@ const PublicHero: React.FC<Props> = ({ slides: propSlides }) => {
                           {slide.subtitle}
                         </p>
                         <div className="pt-2">
-                          <a href="#estoque" className="inline-block px-8 py-4 bg-orange-600 text-white rounded-xl font-black uppercase tracking-widest text-[11px] hover:bg-white hover:text-orange-600 transition-all shadow-2xl">
-                            Ver Estoque
+                          <a href={slide.href} className="inline-block px-8 py-4 bg-orange-600 text-white rounded-xl font-black uppercase tracking-widest text-[11px] hover:bg-white hover:text-orange-600 transition-all shadow-2xl">
+                            {slide.ctaLabel}
                           </a>
                         </div>
                       </div>

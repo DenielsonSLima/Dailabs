@@ -43,6 +43,12 @@ const statusDot: Record<CampanhaStatus, string> = {
   RASCUNHO: 'bg-blue-400',
 };
 
+const getBriefingValue = (observacoes: string | null | undefined, label: string) => {
+  if (!observacoes) return null;
+  const line = observacoes.split('\n').find(item => item.toLowerCase().startsWith(label.toLowerCase()));
+  return line ? line.split(':').slice(1).join(':').trim() : null;
+};
+
 const CampanhaCard: React.FC<CampanhaCardProps> = ({
   campanha,
   onImpulsionar,
@@ -58,6 +64,8 @@ const CampanhaCard: React.FC<CampanhaCardProps> = ({
   const diasRestantes = campanha.data_fim
     ? Math.max(0, Math.ceil((new Date(campanha.data_fim).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : null;
+  const resultado = getBriefingValue(campanha.observacoes, 'Resultado esperado');
+  const publico = getBriefingValue(campanha.observacoes, 'Publico');
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 group">
@@ -95,6 +103,11 @@ const CampanhaCard: React.FC<CampanhaCardProps> = ({
               <h3 className="text-sm font-black text-slate-900 mt-1 truncate">{campanha.nome}</h3>
               {vNome && (
                 <p className="text-[11px] text-slate-500 truncate">{vNome} {campanha.veiculo?.ano_modelo}</p>
+              )}
+              {(resultado || publico) && (
+                <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                  {[resultado, publico].filter(Boolean).join(' · ')}
+                </p>
               )}
             </div>
 

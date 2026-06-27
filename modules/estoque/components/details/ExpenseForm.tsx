@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { FinanceiroService } from '../../../financeiro/financeiro.service';
-import { TiposDespesasService } from '../../../cadastros/tipos-despesas/tipos-despesas.service';
 import { FormasPagamentoService } from '../../../cadastros/formas-pagamento/formas-pagamento.service';
 import { ContasBancariasService } from '../../../ajustes/contas-bancarias/contas.service';
 import { ICategoriaFinanceira } from '../../../financeiro/financeiro.types';
@@ -26,6 +25,9 @@ const ExpenseForm: React.FC<Props> = ({ onClose, onSubmit }) => {
   const [categorias, setCategorias] = useState<ICategoriaFinanceira[]>([]);
   const [formas, setFormas] = useState<IFormaPagamento[]>([]);
   const [contas, setContas] = useState<IContaBancaria[]>([]);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
 
   // Estado Principal
   const [valorTotalStr, setValorTotalStr] = useState('R$ 0,00');
@@ -39,22 +41,28 @@ const ExpenseForm: React.FC<Props> = ({ onClose, onSubmit }) => {
   // Lista de Parcelas Geradas
   const [parcelas, setParcelas] = useState<IParcelaDespesa[]>([]);
 
+  const loadCategorias = async () => {
+    const catData = await FinanceiroService.getCategorias();
+    const filtered = catData.filter(c => c.natureza === 'SAIDA' && c.tipo === 'VARIAVEL');
+    setCategorias(filtered);
+    return filtered;
+  };
+
   useEffect(() => {
     async function loadInitial() {
-      const [catData, fData, cData] = await Promise.all([
-        FinanceiroService.getCategorias(),
+      const [, fData, cData] = await Promise.all([
+        loadCategorias(),
         FormasPagamentoService.getAll(),
         ContasBancariasService.getAll()
       ]);
-      setCategorias(catData.filter(c => c.natureza === 'SAIDA' && c.tipo === 'VARIAVEL'));
       setFormas(fData.filter(f => f.ativo && f.tipo_movimentacao !== 'RECEBIMENTO'));
-      
+
       const activeContas = cData.filter(c => c.ativo);
       setContas(activeContas);
       if (activeContas.length === 1) {
         setContaId(activeContas[0].id);
       }
-      
+
       setLoading(false);
     }
     loadInitial();
@@ -100,6 +108,40 @@ const ExpenseForm: React.FC<Props> = ({ onClose, onSubmit }) => {
 
   const updateParcelaDate = (id: string, date: string) => {
     setParcelas(prev => prev.map(p => p.id_temp === id ? { ...p, vencimento: date } : p));
+  };
+
+  const handleCreateCategory = async () => {
+    const nome = newCategoryName.trim().toUpperCase();
+    if (!nome) {
+      alert('Informe o nome da nova categoria.');
+      return;
+    }
+
+    const existing = categorias.find(c => c.nome.trim().toUpperCase() === nome);
+    if (existing) {
+      setCategoriaId(existing.id);
+      setNewCategoryName('');
+      setIsAddingCategory(false);
+      return;
+    }
+
+    setIsSavingCategory(true);
+    try {
+      const created = await FinanceiroService.saveCategoria({
+        nome,
+        tipo: 'VARIAVEL',
+        natureza: 'SAIDA'
+      });
+      await loadCategorias();
+      setCategoriaId(created.id);
+      setNewCategoryName('');
+      setIsAddingCategory(false);
+    } catch (error: any) {
+      console.error('Erro ao criar categoria financeira:', error);
+      alert(`Erro ao criar categoria: ${error?.message || 'verifique os dados e tente novamente.'}`);
+    } finally {
+      setIsSavingCategory(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -182,17 +224,64 @@ const ExpenseForm: React.FC<Props> = ({ onClose, onSubmit }) => {
 
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1 tracking-widest">Classificação (Categoria)</label>
-              <select
-                value={categoriaId}
-                onChange={e => setCategoriaId(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 font-bold outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
-                required
-              >
-                <option value="">Selecione...</option>
-                {categorias.map(c => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={categoriaId}
+                  onChange={e => setCategoriaId(e.target.value)}
+                  className="min-w-0 flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 font-bold outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+                  required
+                >
+                  <option value="">Selecione...</option>
+                  {categorias.map(c => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingCategory(prev => !prev)}
+                  className="w-12 shrink-0 rounded-2xl border border-slate-200 bg-white text-slate-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all flex items-center justify-center"
+                  title="Cadastrar nova categoria"
+                  aria-label="Cadastrar nova categoria"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" /></svg>
+                </button>
+              </div>
+              {isAddingCategory && (
+                <div className="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-3 space-y-3">
+                  <input
+                    value={newCategoryName}
+                    onChange={e => setNewCategoryName(e.target.value.toUpperCase())}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreateCategory();
+                      }
+                    }}
+                    className="w-full bg-white border border-indigo-100 rounded-xl px-4 py-3 text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="NOME DA NOVA CATEGORIA"
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingCategory(false);
+                        setNewCategoryName('');
+                      }}
+                      className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-700 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateCategory}
+                      disabled={isSavingCategory}
+                      className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 disabled:opacity-50"
+                    >
+                      {isSavingCategory ? 'Salvando...' : 'Salvar'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

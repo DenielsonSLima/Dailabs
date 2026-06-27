@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PedidosCompraService } from './pedidos-compra.service';
+import { PedidosCompraRealtime } from './pedidos-compra.realtime';
+import { invalidatePedidosCompraOverview } from './pedidos-compra.query-invalidation';
 import { IPedidoFiltros } from './pedidos-compra.types';
 import PedidosList from './components/PedidosList';
 import PedidosFilters from './components/PedidosFilters';
@@ -53,10 +55,8 @@ const PedidoCompraPage: React.FC = () => {
 
   // Real-time Subscription
   useEffect(() => {
-    const sub = PedidosCompraService.subscribe(() => {
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_list'] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_stats'] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_draft_count'] });
+    const sub = PedidosCompraRealtime.subscribe(() => {
+      invalidatePedidosCompraOverview(queryClient);
     });
     return () => {
       sub.unsubscribe();

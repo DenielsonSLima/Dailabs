@@ -208,13 +208,6 @@ export const PedidosVendaService = {
     if (error) throw error;
   },
 
-  async cancelSale(id: string): Promise<void> {
-    const { error } = await supabase.rpc('cancelar_venda_pedido', {
-      p_pedido_id: id
-    });
-    if (error) throw error;
-  },
-
   async delete(id: string): Promise<void> {
     const { error } = await supabase.rpc('excluir_pedido_venda', { p_venda_id: id });
     if (error) throw error;
@@ -244,17 +237,5 @@ export const PedidosVendaService = {
   async getTitulosByPedidoId(pedidoId: string): Promise<any[]> {
     // Delega ao FinanceiroService com tipo VENDA para usar coluna venda_pedido_id
     return FinanceiroService.getTitulosByPedidoId(pedidoId, 'VENDA');
-  },
-
-  subscribe(onUpdate: () => void) {
-    return supabase
-      .channel('venda_pedidos_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, () => {
-        onUpdate();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: PAYMENTS_TABLE }, () => {
-        onUpdate();
-      })
-      .subscribe();
   }
 };

@@ -238,26 +238,5 @@ export const PedidosCompraService = {
       .update({ pedido_id: null })
       .eq('id', vehicleId);
     if (error) throw error;
-  },
-
-  subscribe(onUpdate: (payload: any) => void) {
-    // Canal com nome determinístico para evitar leak de múltiplas subscriptions
-    const channel = supabase
-      .channel('nexus:cmp_pedidos_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, (payload) => {
-        console.debug('[Realtime] Mudança detectada em pedidos:', payload.eventType);
-        onUpdate(payload);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cmp_pedidos_pagamentos' }, (payload) => {
-        console.debug('[Realtime] Mudança detectada em pagamentos:', payload.eventType);
-        onUpdate(payload);
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.debug('[Realtime] Inscrito com sucesso nos canais de pedidos de compra');
-        }
-      });
-
-    return channel;
   }
 };

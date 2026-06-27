@@ -7,6 +7,8 @@ export interface IHeroSlide {
     image_url: string;
 }
 
+export type HeroSource = 'slides' | 'estoque';
+
 export const HeroSlideSchema = z.object({
     title: z.string(),
     subtitle: z.string(),
@@ -27,6 +29,7 @@ export const SobreCardSchema = z.object({
 // ─── Conteúdo do Site ───
 export interface ISiteConteudo {
     id: string;
+    hero_source: HeroSource;
     hero_slides: IHeroSlide[];
     sobre_titulo: string;
     sobre_subtitulo: string;
@@ -43,6 +46,7 @@ export interface ISiteConteudo {
 
 export const SiteConteudoSchema = z.object({
     id: z.string(),
+    hero_source: z.enum(['slides', 'estoque']).default('slides'),
     hero_slides: z.array(HeroSlideSchema).default([]),
     sobre_titulo: z.string().default('Quem Somos.'),
     sobre_subtitulo: z.string().default('HCV Veículos'),

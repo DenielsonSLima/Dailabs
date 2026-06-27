@@ -88,7 +88,11 @@ const SitePublicoPage: React.FC = () => {
 
       <main>
         {/* Hero Section */}
-        <PublicHero slides={data?.conteudo?.hero_slides} />
+        <PublicHero
+          slides={data?.conteudo?.hero_slides}
+          veiculos={data?.veiculos || []}
+          source={data?.conteudo?.hero_source || 'slides'}
+        />
 
         {isLoading ? (
           <PublicHomeSkeleton />

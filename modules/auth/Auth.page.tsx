@@ -14,7 +14,9 @@ const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const { session } = useAuthStore();
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [error, setError] = useState<{ title: string, message: string } | null>(null);
+  const [success, setSuccess] = useState<{ title: string, message: string } | null>(null);
   const [currentBgIndex, setCurrentBgIndex] = useState(0);
 
   // Redirecionamento automático baseado no estado da sessão
@@ -39,6 +41,7 @@ const AuthPage: React.FC = () => {
   const handleLogin = async (email: string, pass: string) => {
     setLoading(true);
     setError(null);
+    setSuccess(null);
     try {
       await AuthService.signIn(email, pass);
       // O redirecionamento agora é feito pelo useEffect monitorando o estado da session
@@ -58,6 +61,36 @@ const AuthPage: React.FC = () => {
       setError({ title, message });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (email: string) => {
+    setError(null);
+    setSuccess(null);
+
+    if (!email) {
+      setError({
+        title: 'Informe o e-mail',
+        message: 'Digite seu e-mail de acesso antes de solicitar a troca de senha.',
+      });
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      await AuthService.sendPasswordReset(email);
+      setSuccess({
+        title: 'E-mail enviado',
+        message: 'Enviamos um link seguro para redefinir sua senha pelo Supabase.',
+      });
+    } catch (err: any) {
+      console.error('Erro ao solicitar reset de senha:', err);
+      setError({
+        title: 'Não foi possível enviar',
+        message: err.message || 'Tente novamente em alguns instantes.',
+      });
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -130,7 +163,24 @@ const AuthPage: React.FC = () => {
             </div>
           )}
 
-          <LoginForm onSubmit={handleLogin} isLoading={loading} />
+          {success && (
+            <div className="mb-6 p-4 bg-emerald-500/20 border border-emerald-500/30 text-emerald-100 rounded-2xl flex items-start space-x-3 backdrop-blur-sm animate-in fade-in duration-300">
+              <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest mb-0.5">{success.title}</p>
+                <p className="text-xs leading-tight opacity-90">{success.message}</p>
+              </div>
+            </div>
+          )}
+
+          <LoginForm
+            onSubmit={handleLogin}
+            onForgotPassword={handleForgotPassword}
+            isLoading={loading}
+            isResetLoading={resetLoading}
+          />
 
           {/* Link para site público removido pois o sistema é restrito */}
         </div>
@@ -158,4 +208,3 @@ const AuthPage: React.FC = () => {
 };
 
 export default AuthPage;
-

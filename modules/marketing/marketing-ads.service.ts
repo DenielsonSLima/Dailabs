@@ -29,6 +29,14 @@ export interface RegiaoConfig {
   cidades?: string[];
 }
 
+export interface PublicoConfig {
+  perfil: string;
+  faixa_etaria_min: number;
+  faixa_etaria_max: number;
+  interesses: string[];
+  resultado_esperado: string;
+}
+
 export interface IMktCampanha {
   id: string;
   organization_id: string;
@@ -84,6 +92,8 @@ export interface INovoAnuncioPayload {
   orcamento_diario: number;
   duracao_dias: number;
   regiao_config: RegiaoConfig;
+  publico_config?: PublicoConfig;
+  resultado_esperado?: string;
   observacoes?: string;
   imagem_url?: string;
 }

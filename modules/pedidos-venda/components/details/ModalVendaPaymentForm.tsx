@@ -27,6 +27,9 @@ const ModalVendaPaymentForm: React.FC<Props> = ({ pedido, onClose, onSubmit, isS
   const [condicoes, setCondicoes] = useState<ICondicaoRecebimento[]>([]);
   const [contas, setContas] = useState<IContaBancaria[]>([]);
   const [loadingCondicoes, setLoadingCondicoes] = useState(false);
+  const [commissionMode, setCommissionMode] = useState<'VALOR' | 'PERCENTUAL'>('VALOR');
+  const [commissionPercent, setCommissionPercent] = useState('');
+  const [deduzirComissao, setDeduzirComissao] = useState(true);
 
   const [valorTotalACompor, setValorTotalACompor] = useState('R$ 0,00');
   const [formaId, setFormaId] = useState(pedido.forma_pagamento_id || '');
@@ -35,6 +38,13 @@ const ModalVendaPaymentForm: React.FC<Props> = ({ pedido, onClose, onSubmit, isS
   const [observacao, setObservacao] = useState('');
 
   const [parcelas, setParcelas] = useState<IParcelaGerada[]>([]);
+  const isConsignado = !!pedido.is_consignado;
+  const valorVendaPedido = pedido.valor_venda || 0;
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+  const parseCurrency = (value: string) => Number(value.replace(/\D/g, '')) / 100;
 
   useEffect(() => {
     async function loadInitial() {
@@ -53,12 +63,18 @@ const ModalVendaPaymentForm: React.FC<Props> = ({ pedido, onClose, onSubmit, isS
     }
     loadInitial();
 
-    // Define o valor total da venda como valor inicial sugerido
+    // Em consignação, o financeiro deve receber apenas comissão/lucro da loja.
+    if (pedido.is_consignado) {
+      setValorTotalACompor(formatCurrency(0));
+      return;
+    }
+
+    // Define o valor total da venda como valor inicial sugerido para vendas próprias.
     const totalVenda = pedido.valor_venda || 0;
     const totalJaEstruturado = (pedido.pagamentos || []).reduce((acc, p) => acc + p.valor, 0);
     const saldo = Math.max(0, totalVenda - totalJaEstruturado);
 
-    setValorTotalACompor(new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldo));
+    setValorTotalACompor(formatCurrency(saldo));
   }, [pedido]);
 
   useEffect(() => {
@@ -77,7 +93,7 @@ const ModalVendaPaymentForm: React.FC<Props> = ({ pedido, onClose, onSubmit, isS
 
   useEffect(() => {
     const condicao = condicoes.find(c => c.id === condicaoId);
-    const valorNumerico = Number(valorTotalACompor.replace(/\D/g, '')) / 100;
+    const valorNumerico = parseCurrency(valorTotalACompor);
 
     if (condicao && valorNumerico > 0) {
       const novasParcelas: IParcelaGerada[] = [];
@@ -110,8 +126,19 @@ const ModalVendaPaymentForm: React.FC<Props> = ({ pedido, onClose, onSubmit, isS
   const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, "");
     const numericValue = Number(value) / 100;
-    const formatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(numericValue);
+    const formatted = formatCurrency(numericValue);
+    if (isConsignado) {
+      setCommissionMode('VALOR');
+      setCommissionPercent('');
+    }
     setValorTotalACompor(formatted);
+  };
+
+  const handleCommissionPercentChange = (value: string) => {
+    setCommissionMode('PERCENTUAL');
+    setCommissionPercent(value);
+    const percent = Number(value.replace(',', '.')) || 0;
+    setValorTotalACompor(formatCurrency(Math.max(0, valorVendaPedido * (percent / 100))));
   };
 
   const updateParcelaDate = (id: string, newDate: string) => {
@@ -127,6 +154,10 @@ const ModalVendaPaymentForm: React.FC<Props> = ({ pedido, onClose, onSubmit, isS
       return;
     }
 
+    const observacaoConsignacao = isConsignado
+      ? `Consignação: comissão ${deduzirComissao ? 'deduzida do valor de venda' : 'sem dedução do valor de venda'}. ${observacao}`.trim()
+      : observacao;
+
     const payload: Partial<IVendaPagamento>[] = parcelas.map(p => ({
       pedido_id: pedido.id,
       data_recebimento: p.data_vencimento,
@@ -134,7 +165,7 @@ const ModalVendaPaymentForm: React.FC<Props> = ({ pedido, onClose, onSubmit, isS
       condicao_id: condicaoId,
       conta_bancaria_id: p.data_vencimento <= new Date().toISOString().split('T')[0] ? contaBancariaId : undefined,
       valor: p.valor,
-      observacao: parcelas.length > 1 ? `Recebimento Parcela ${p.numero}/${parcelas.length} - ${observacao}` : observacao
+      observacao: parcelas.length > 1 ? `Recebimento Parcela ${p.numero}/${parcelas.length} - ${observacaoConsignacao}` : observacaoConsignacao
     }));
 
     onSubmit(payload);
@@ -145,14 +176,17 @@ const ModalVendaPaymentForm: React.FC<Props> = ({ pedido, onClose, onSubmit, isS
     return () => { document.body.style.overflow = 'unset'; };
   }, []);
 
+  const valorComissao = parseCurrency(valorTotalACompor);
+  const repasseEstimado = Math.max(0, valorVendaPedido - valorComissao);
+
   const content = (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 border border-slate-100 flex flex-col max-h-[95vh]">
 
         <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
           <div>
-            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Estruturar Recebimento</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Configurar cronograma de entrada financeira</p>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">{isConsignado ? 'Comissão da Consignação' : 'Estruturar Recebimento'}</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{isConsignado ? 'Registrar lucro/comissão da loja' : 'Configurar cronograma de entrada financeira'}</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white rounded-full text-slate-400 hover:text-rose-500 transition-colors">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -161,9 +195,68 @@ const ModalVendaPaymentForm: React.FC<Props> = ({ pedido, onClose, onSubmit, isS
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
 
+          {isConsignado && (
+            <div className="rounded-3xl border border-violet-100 bg-violet-50 p-5 space-y-4">
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div>
+                  <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Venda consignada</p>
+                  <p className="text-sm font-black text-violet-950">Valor de venda: {formatCurrency(valorVendaPedido)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDeduzirComissao(prev => !prev)}
+                  className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${deduzirComissao ? 'bg-violet-700 text-white' : 'bg-white text-violet-700 border border-violet-200'}`}
+                >
+                  {deduzirComissao ? 'Deduz da venda' : 'Não deduz'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 bg-white/70 p-1 rounded-2xl border border-violet-100">
+                <button
+                  type="button"
+                  onClick={() => setCommissionMode('VALOR')}
+                  className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${commissionMode === 'VALOR' ? 'bg-violet-700 text-white shadow-md' : 'text-violet-400 hover:text-violet-700'}`}
+                >
+                  Valor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCommissionMode('PERCENTUAL')}
+                  className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${commissionMode === 'PERCENTUAL' ? 'bg-violet-700 text-white shadow-md' : 'text-violet-400 hover:text-violet-700'}`}
+                >
+                  Porcentagem
+                </button>
+              </div>
+
+              {commissionMode === 'PERCENTUAL' && (
+                <div>
+                  <label className="block text-[10px] font-black text-violet-400 uppercase mb-2 ml-1 tracking-widest">Percentual de comissão</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={commissionPercent}
+                      onChange={e => handleCommissionPercentChange(e.target.value)}
+                      className="w-full bg-white border-2 border-violet-100 rounded-2xl px-4 py-3 pr-10 text-xl font-black text-violet-900 outline-none focus:border-violet-500 transition-all text-center shadow-sm"
+                      placeholder="0"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-violet-400 font-black">%</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 text-[10px] font-black uppercase tracking-widest text-violet-500">
+                <span>Comissão: {formatCurrency(valorComissao)}</span>
+                {deduzirComissao && <span>Repasse estimado: {formatCurrency(repasseEstimado)}</span>}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             <div className="md:col-span-4">
-              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1 tracking-widest">Valor do Lote</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1 tracking-widest">{isConsignado ? 'Lucro / Comissão' : 'Valor do Lote'}</label>
               <input
                 type="text"
                 value={valorTotalACompor}

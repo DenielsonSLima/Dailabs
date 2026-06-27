@@ -3,6 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PedidosCompraService } from './pedidos-compra.service';
+import { PedidosCompraRealtime } from './pedidos-compra.realtime';
+import {
+  invalidatePedidoCompraDetails,
+  invalidatePedidoCompraFinancial,
+  invalidatePedidoCompraFullChange,
+  invalidatePedidosCompraOverview,
+  invalidatePedidosCompraStock,
+} from './pedidos-compra.query-invalidation';
 import { IPedidoCompra, IPedidoPagamento } from './pedidos-compra.types';
 import { EmpresaService } from '../ajustes/empresa/empresa.service';
 import { MarcaDaguaService } from '../ajustes/marca-dagua/marca-dagua.service';
@@ -59,8 +67,8 @@ const PedidoCompraDetalhesPage: React.FC = () => {
   // Real-time Subscription
   useEffect(() => {
     if (!id) return;
-    const sub = PedidosCompraService.subscribe(() => {
-      queryClient.invalidateQueries({ queryKey: ['pedido_compra_detalhes', id] });
+    const sub = PedidosCompraRealtime.subscribe(() => {
+      invalidatePedidoCompraDetails(queryClient, id);
     });
     return () => { sub.unsubscribe(); };
   }, [id, queryClient]);
@@ -82,13 +90,7 @@ const PedidoCompraDetalhesPage: React.FC = () => {
       }
       showNotification('success', successMsg);
       setShowConfirm(false);
-      queryClient.invalidateQueries({ queryKey: ['pedido_compra_detalhes', id] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_list'] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_stats'] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_draft_count'] });
-      queryClient.invalidateQueries({ queryKey: ['estoque_list'] });
-      queryClient.invalidateQueries({ queryKey: ['estoque_stats'] });
-      queryClient.invalidateQueries({ queryKey: ['contas-pagar'] });
+      invalidatePedidoCompraFullChange(queryClient, id);
     },
     onError: (e: any) => showNotification('error', "Erro ao confirmar entrada: " + e.message)
   });
@@ -98,13 +100,7 @@ const PedidoCompraDetalhesPage: React.FC = () => {
     onSuccess: () => {
       showNotification('success', 'Pedido reaberto com sucesso.');
       setShowReopen(false);
-      queryClient.invalidateQueries({ queryKey: ['pedido_compra_detalhes', id] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_list'] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_stats'] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_draft_count'] });
-      queryClient.invalidateQueries({ queryKey: ['estoque_list'] });
-      queryClient.invalidateQueries({ queryKey: ['estoque_stats'] });
-      queryClient.invalidateQueries({ queryKey: ['contas-pagar'] });
+      invalidatePedidoCompraFullChange(queryClient, id);
     },
     onError: () => showNotification('error', 'Erro ao reabrir pedido.')
   });
@@ -113,11 +109,7 @@ const PedidoCompraDetalhesPage: React.FC = () => {
     mutationFn: () => PedidosCompraService.delete(id!),
     onSuccess: () => {
       navigate('/pedidos-compra');
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_list'] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_stats'] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_draft_count'] });
-      queryClient.invalidateQueries({ queryKey: ['estoque_list'] });
-      queryClient.invalidateQueries({ queryKey: ['estoque_stats'] });
+      invalidatePedidoCompraFullChange(queryClient, id);
     },
     onError: () => showNotification('error', 'Erro ao excluir pedido.')
   });
@@ -130,8 +122,9 @@ const PedidoCompraDetalhesPage: React.FC = () => {
     },
     onSuccess: (_, variables) => {
       showNotification('success', `${variables.length} pagamento(s) lançado(s) com sucesso!`);
-      queryClient.invalidateQueries({ queryKey: ['pedido_compra_detalhes', id] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_stats'] });
+      invalidatePedidoCompraDetails(queryClient, id);
+      invalidatePedidosCompraOverview(queryClient);
+      invalidatePedidoCompraFinancial(queryClient);
     },
     onError: () => showNotification('error', 'Erro ao processar pagamentos.')
   });
@@ -140,8 +133,9 @@ const PedidoCompraDetalhesPage: React.FC = () => {
     mutationFn: (payId: string) => PedidosCompraService.deletePayment(payId),
     onSuccess: () => {
       showNotification('success', 'Lançamento removido com sucesso.');
-      queryClient.invalidateQueries({ queryKey: ['pedido_compra_detalhes', id] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_stats'] });
+      invalidatePedidoCompraDetails(queryClient, id);
+      invalidatePedidosCompraOverview(queryClient);
+      invalidatePedidoCompraFinancial(queryClient);
     },
     onError: () => showNotification('error', 'Erro ao excluir lançamento.')
   });
@@ -150,17 +144,16 @@ const PedidoCompraDetalhesPage: React.FC = () => {
     mutationFn: (vehicleId: string) => PedidosCompraService.unlinkVehicle(vehicleId),
     onSuccess: () => {
       setUnlinkTargetId(null);
-      queryClient.invalidateQueries({ queryKey: ['pedido_compra_detalhes', id] });
-      queryClient.invalidateQueries({ queryKey: ['pedidos_compra_stats'] });
-      queryClient.invalidateQueries({ queryKey: ['estoque_list'] });
-      queryClient.invalidateQueries({ queryKey: ['estoque_stats'] });
+      invalidatePedidoCompraDetails(queryClient, id);
+      invalidatePedidosCompraOverview(queryClient);
+      invalidatePedidosCompraStock(queryClient);
     },
     onError: () => showNotification('error', 'Erro ao desvincular veículo.')
   });
 
   const saveNotesMutation = useMutation({
     mutationFn: (v: string) => PedidosCompraService.save({ id: pedido?.id, observacoes: v }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pedido_compra_detalhes', id] }),
+    onSuccess: () => invalidatePedidoCompraDetails(queryClient, id),
     onError: () => showNotification('error', 'Erro ao salvar observações.')
   });
 
@@ -310,7 +303,9 @@ const PedidoCompraDetalhesPage: React.FC = () => {
         onClose={() => setShowDelete(false)}
         onConfirm={() => deleteMutation.mutate()}
         title="Excluir Pedido?"
-        message="Esta ação apagará o rascunho e todos os vínculos criados até agora."
+        message="Esta ação apagará o pedido e todos os vínculos relacionados, incluindo veículo, pagamentos e lançamentos financeiros vinculados."
+        confirmText="Sim, Excluir"
+        variant="danger"
         isLoading={deleteMutation.isPending}
       />
 

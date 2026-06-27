@@ -43,6 +43,8 @@ import AjustesPage from './modules/ajustes/Ajustes.page.tsx';
 import StoryGeneratorPage from './modules/marketing/StoryGenerator.page.tsx';
 import FeedGeneratorPage from './modules/marketing/FeedGenerator.page.tsx';
 import MarketingPage from './modules/marketing/Marketing.page.tsx';
+import AnuncioHubPage from './modules/marketing/AnuncioHub.page.tsx';
+import NovoAnuncioPage from './modules/marketing/NovoAnuncio.page.tsx';
 
 // Submódulos Relatórios
 import RelatorioVendasPage from './modules/relatorios/pages/RelatorioVendas.page.tsx';
@@ -83,6 +85,7 @@ import BackupPage from './modules/ajustes/backup/Backup.page.tsx';
 import ApiResetPage from './modules/ajustes/api-reset/ApiReset.page.tsx';
 import ContasBancariasPage from './modules/ajustes/contas-bancarias/ContasBancarias.page.tsx';
 import SaldoInicialPage from './modules/ajustes/saldo-inicial/SaldoInicial.page.tsx';
+import EditorSitePage from './modules/editor-site/EditorSite.page.tsx';
 
 import { useAuthStore } from './store/auth.store.ts';
 
@@ -93,6 +96,7 @@ const App: React.FC = () => {
   const queryClient = useQueryClient();
   const { session, profile, loading, setSession, setProfile, setLoading } = useAuthStore();
   const [showTimeoutModal, setShowTimeoutModal] = useState(false);
+  const [showRecoveryPasswordChange, setShowRecoveryPasswordChange] = useState(false);
   const [countdown, setCountdown] = useState(120);
   const showTimeoutModalRef = React.useRef(false);
   const inactivityTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -136,6 +140,7 @@ const App: React.FC = () => {
       if (event === 'SIGNED_OUT') {
         setSession(null);
         setProfile(null);
+        setShowRecoveryPasswordChange(false);
         // Limpa todo o cache React Query para evitar dados stale na próxima sessão
         queryClient.clear();
         // Limpa o timer de inatividade para evitar interferência na próxima sessão
@@ -148,6 +153,10 @@ const App: React.FC = () => {
         if (currentSession?.user) loadProfile(currentSession.user.id);
         // Invalida todas as queries para forçar refetch com a nova sessão autenticada
         queryClient.invalidateQueries();
+      } else if (event === 'PASSWORD_RECOVERY') {
+        setSession(currentSession);
+        setShowRecoveryPasswordChange(true);
+        if (currentSession?.user) loadProfile(currentSession.user.id);
       }
       setLoading(false);
     });
@@ -315,10 +324,10 @@ const App: React.FC = () => {
     <BrowserRouter>
       <ScrollToTop />
       <Routes>
-        {/* Rotas Públicas (Inativadas) */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/estoque-publico" element={<Navigate to="/login" replace />} />
-        <Route path="/veiculo/:id" element={<Navigate to="/login" replace />} />
+        {/* Rotas Públicas */}
+        <Route path="/" element={<SitePublicoPage />} />
+        <Route path="/estoque-publico" element={<EstoquePublicoPage />} />
+        <Route path="/veiculo/:id" element={<PublicVehicleDetailsPage />} />
 
         {/* Auth */}
         <Route path="/login" element={session ? <Navigate to={window.innerWidth < 768 ? '/caixa' : '/inicio'} /> : <AuthPage />} />
@@ -395,8 +404,11 @@ const App: React.FC = () => {
                   <Route path="/ajustes/api-reset" element={<ApiResetPage />} />
                   <Route path="/ajustes/contas-bancarias" element={<ContasBancariasPage />} />
                   <Route path="/ajustes/saldo-inicial" element={<SaldoInicialPage />} />
+                  <Route path="/ajustes/site-publico" element={<EditorSitePage />} />
 
                   <Route path="/marketing" element={<MarketingPage />} />
+                  <Route path="/marketing/anuncios" element={<AnuncioHubPage />} />
+                  <Route path="/marketing/anuncios/novo" element={<NovoAnuncioPage />} />
                   <Route path="/marketing/feed" element={<FeedGeneratorPage />} />
                   <Route path="/marketing/stories" element={<StoryGeneratorPage />} />
 
@@ -412,16 +424,20 @@ const App: React.FC = () => {
 
       {session && (
         <SessionTimeoutModal
-          isOpen={showTimeoutModal && !profile?.force_password_change}
+          isOpen={showTimeoutModal && !profile?.force_password_change && !showRecoveryPasswordChange}
           countdown={countdown}
           onContinue={handleContinueSession}
           onLogout={handleManualLogout}
         />
       )}
 
-      {session && profile?.force_password_change && (
+      {session && (profile?.force_password_change || showRecoveryPasswordChange) && (
         <ForcePasswordChangeModal
-          onSuccess={() => loadProfile(session.user.id)}
+          mode={showRecoveryPasswordChange ? 'recovery' : 'first_access'}
+          onSuccess={async () => {
+            setShowRecoveryPasswordChange(false);
+            await loadProfile(session.user.id);
+          }}
           onLogout={handleManualLogout}
         />
       )}

@@ -1,16 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { EstoqueService } from '../estoque/estoque.service';
 import { EmpresaService } from '../ajustes/empresa/empresa.service';
+import { CidadesService } from '../cadastros/cidades/cidades.service';
 import {
   MarketingAdsService,
   Platform,
   IMktTemplate,
   INovoAnuncioPayload,
   RegiaoConfig,
+  PublicoConfig,
 } from './marketing-ads.service';
+import {
+  invalidateMarketingCampanhas,
+  marketingQueryKeys,
+} from './marketing.query-invalidation';
 import TemplateSelector from './components/TemplateSelector';
 import MarketingVehicleSelection from './components/MarketingVehicleSelection';
 
@@ -44,6 +50,34 @@ const OBJECTIVES = [
   { key: 'LEADS', label: 'Leads', descricao: 'Capturar contatos interessados' },
 ];
 
+const PUBLICOS = [
+  { key: 'COMPRADORES_INTENCAO', label: 'Compradores com intenção', descricao: 'Pessoas pesquisando troca, financiamento ou seminovos' },
+  { key: 'FINANCIAMENTO', label: 'Financiamento', descricao: 'Público interessado em parcelas, crédito e aprovação' },
+  { key: 'PREMIUM', label: 'Alto padrão', descricao: 'Busca por SUVs, sedãs, caminhonetes e veículos premium' },
+  { key: 'RETARGETING', label: 'Remarketing', descricao: 'Quem já interagiu com site, Instagram ou WhatsApp' },
+];
+
+const INTERESSES_PADRAO = [
+  'Carros usados',
+  'Seminovos',
+  'Financiamento de veículos',
+  'Compra de automóveis',
+  'Troca de carro',
+  'SUV',
+  'Picape',
+  'Seguro auto',
+];
+
+const RESULTADOS = [
+  { key: 'LEADS_WHATSAPP', label: 'Leads no WhatsApp', descricao: 'Conversas de compradores interessados' },
+  { key: 'VISITAS_LOJA', label: 'Visitas à loja', descricao: 'Atrair pessoas da região para atendimento presencial' },
+  { key: 'SIMULACOES', label: 'Simulações', descricao: 'Pedidos de financiamento, troca ou proposta' },
+  { key: 'TRAFEGO_SITE', label: 'Tráfego no site', descricao: 'Levar visitantes para estoque público ou página do veículo' },
+];
+
+const getLabel = (items: { key: string; label: string }[], key: string) =>
+  items.find(item => item.key === key)?.label || key;
+
 const NovoAnuncioPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -53,10 +87,17 @@ const NovoAnuncioPage: React.FC = () => {
   const [selectedVeiculoId, setSelectedVeiculoId] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<IMktTemplate | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>('FACEBOOK');
-  const [objetivo, setObjetivo] = useState('REACH');
+  const [objetivo, setObjetivo] = useState('LEADS');
   const [orcamentoDiario, setOrcamentoDiario] = useState(30);
   const [duracaoDias, setDuracaoDias] = useState(7);
   const [regiaoConfig, setRegiaoConfig] = useState<RegiaoConfig>({ tipo: 'ESTADO' });
+  const [cidadesSelecionadas, setCidadesSelecionadas] = useState<string[]>([]);
+  const [publicoPerfil, setPublicoPerfil] = useState('COMPRADORES_INTENCAO');
+  const [idadeMin, setIdadeMin] = useState(24);
+  const [idadeMax, setIdadeMax] = useState(60);
+  const [interesses, setInteresses] = useState<string[]>(INTERESSES_PADRAO.slice(0, 5));
+  const [novoInteresse, setNovoInteresse] = useState('');
+  const [resultadoEsperado, setResultadoEsperado] = useState('LEADS_WHATSAPP');
   const [nomeCampanha, setNomeCampanha] = useState('');
   const [observacoes, setObservacoes] = useState('');
 
@@ -68,7 +109,7 @@ const NovoAnuncioPage: React.FC = () => {
   });
 
   const { data: templates = [] } = useQuery({
-    queryKey: ['mkt_templates'],
+    queryKey: marketingQueryKeys.templates,
     queryFn: () => MarketingAdsService.getTemplates(),
   });
 
@@ -83,12 +124,35 @@ const NovoAnuncioPage: React.FC = () => {
     queryFn: () => EmpresaService.getDadosEmpresa(),
   });
 
+  const { data: cidades = [] } = useQuery({
+    queryKey: ['cidades_marketing'],
+    queryFn: () => CidadesService.getAll(true),
+  });
+
+  const cidadesOpcoes = useMemo(() => {
+    const mapa = new Map<string, string>();
+    if (empresa?.cidade) {
+      mapa.set(`${empresa.cidade}/${empresa.uf || ''}`, empresa.uf ? `${empresa.cidade}/${empresa.uf}` : empresa.cidade);
+    }
+    cidades
+      .filter(c => !empresa?.uf || c.uf === empresa.uf)
+      .slice(0, 30)
+      .forEach(c => mapa.set(`${c.nome}/${c.uf}`, `${c.nome}/${c.uf}`));
+    return Array.from(mapa.values());
+  }, [cidades, empresa?.cidade, empresa?.uf]);
+
+  useEffect(() => {
+    if (empresa?.cidade && cidadesSelecionadas.length === 0) {
+      setCidadesSelecionadas([empresa.uf ? `${empresa.cidade}/${empresa.uf}` : empresa.cidade]);
+    }
+  }, [empresa?.cidade, empresa?.uf, cidadesSelecionadas.length]);
+
   // ── Mutation ──────────────────────────────────────────────────────────────
 
   const criarMutation = useMutation({
     mutationFn: (payload: INovoAnuncioPayload) => MarketingAdsService.createCampanha(payload),
-    onSuccess: (campanha) => {
-      queryClient.invalidateQueries({ queryKey: ['mkt_campanhas'] });
+    onSuccess: () => {
+      invalidateMarketingCampanhas(queryClient);
       toast.success('Anúncio criado! Agora clique em Impulsionar para ativá-lo.');
       navigate('/marketing/anuncios');
     },
@@ -104,6 +168,15 @@ const NovoAnuncioPage: React.FC = () => {
     setOrcamentoDiario(template.orcamento_diario);
     setDuracaoDias(template.duracao_dias);
     setRegiaoConfig(template.regiao_config);
+    if (template.regiao_config?.cidades?.length) {
+      setCidadesSelecionadas(template.regiao_config.cidades);
+    }
+    const publico = template.publico_config as Partial<PublicoConfig> | undefined;
+    if (publico?.perfil) setPublicoPerfil(publico.perfil);
+    if (publico?.faixa_etaria_min) setIdadeMin(publico.faixa_etaria_min);
+    if (publico?.faixa_etaria_max) setIdadeMax(publico.faixa_etaria_max);
+    if (publico?.interesses?.length) setInteresses(publico.interesses);
+    if (publico?.resultado_esperado) setResultadoEsperado(publico.resultado_esperado);
   };
 
   const gerarNomeCampanha = (): string => {
@@ -120,6 +193,10 @@ const NovoAnuncioPage: React.FC = () => {
       toast.error('Selecione um veículo.');
       return;
     }
+    if (step === 2 && templates.length > 0 && !selectedTemplate) {
+      toast.error('Selecione um template.');
+      return;
+    }
     if (step === 3 && !selectedPlatform) {
       toast.error('Selecione uma plataforma.');
       return;
@@ -127,10 +204,97 @@ const NovoAnuncioPage: React.FC = () => {
     if (step === 4 && !nomeCampanha) {
       setNomeCampanha(gerarNomeCampanha());
     }
+    if (step === 4 && regiaoConfig.tipo === 'CIDADE' && cidadesSelecionadas.length === 0) {
+      toast.error('Selecione pelo menos uma cidade.');
+      return;
+    }
     setStep(s => Math.min(5, s + 1) as Step);
   };
 
+  const toggleCidade = (cidade: string) => {
+    setCidadesSelecionadas(prev =>
+      prev.includes(cidade) ? prev.filter(item => item !== cidade) : [...prev, cidade]
+    );
+    setRegiaoConfig(prev => ({ ...prev, tipo: 'CIDADE' }));
+  };
+
+  const toggleInteresse = (interesse: string) => {
+    setInteresses(prev =>
+      prev.includes(interesse) ? prev.filter(item => item !== interesse) : [...prev, interesse]
+    );
+  };
+
+  const addInteresse = () => {
+    const value = novoInteresse.trim();
+    if (!value) return;
+    if (!interesses.some(item => item.toLowerCase() === value.toLowerCase())) {
+      setInteresses(prev => [...prev, value]);
+    }
+    setNovoInteresse('');
+  };
+
+  const getRegiaoPayload = (): RegiaoConfig => {
+    if (regiaoConfig.tipo === 'CIDADE') {
+      return { tipo: 'CIDADE', cidades: cidadesSelecionadas, estado: empresa?.uf || undefined };
+    }
+    return {
+      ...regiaoConfig,
+      estado: regiaoConfig.tipo === 'ESTADO' ? (empresa?.uf || 'SE') : undefined,
+      cidades: undefined,
+    };
+  };
+
+  const getPublicoPayload = (): PublicoConfig => ({
+    perfil: publicoPerfil,
+    faixa_etaria_min: idadeMin,
+    faixa_etaria_max: idadeMax,
+    interesses,
+    resultado_esperado: resultadoEsperado,
+  });
+
+  const getBriefingObservacoes = () => {
+    const linhas = [
+      '[PRE-CONFIGURACAO ANUNCIO]',
+      `Resultado esperado: ${getLabel(RESULTADOS, resultadoEsperado)}`,
+      `Publico: ${getLabel(PUBLICOS, publicoPerfil)}`,
+      `Faixa etaria: ${idadeMin}-${idadeMax} anos`,
+      `Interesses: ${interesses.join(', ') || 'Nao informado'}`,
+      `Regiao: ${regiaoConfig.tipo === 'CIDADE' ? cidadesSelecionadas.join(', ') : regiaoConfig.tipo}`,
+      observacoes ? `Observacoes: ${observacoes}` : '',
+    ].filter(Boolean);
+    return linhas.join('\n');
+  };
+
   const handleSubmit = () => {
+    if (!selectedVeiculoId) {
+      toast.error('Selecione um veículo.');
+      return;
+    }
+    if (templates.length > 0 && !selectedTemplate) {
+      toast.error('Selecione um template.');
+      return;
+    }
+    if (!Number.isFinite(orcamentoDiario) || orcamentoDiario < 5) {
+      toast.error('Informe um orçamento diário válido.');
+      return;
+    }
+    if (!Number.isFinite(duracaoDias) || duracaoDias < 1) {
+      toast.error('Informe uma duração válida.');
+      return;
+    }
+    if (idadeMin < 18 || idadeMax < idadeMin) {
+      toast.error('Revise a faixa etária do público.');
+      return;
+    }
+    if (regiaoConfig.tipo === 'CIDADE' && cidadesSelecionadas.length === 0) {
+      toast.error('Selecione pelo menos uma cidade.');
+      return;
+    }
+    if (interesses.length === 0) {
+      toast.error('Selecione pelo menos um interesse.');
+      return;
+    }
+
     const nome = nomeCampanha || gerarNomeCampanha();
     criarMutation.mutate({
       veiculo_id: selectedVeiculoId || null,
@@ -140,11 +304,10 @@ const NovoAnuncioPage: React.FC = () => {
       objetivo,
       orcamento_diario: orcamentoDiario,
       duracao_dias: duracaoDias,
-      regiao_config: {
-        ...regiaoConfig,
-        estado: regiaoConfig.tipo === 'ESTADO' ? (empresa?.uf || 'SE') : undefined
-      },
-      observacoes: observacoes || undefined,
+      regiao_config: getRegiaoPayload(),
+      publico_config: getPublicoPayload(),
+      resultado_esperado: resultadoEsperado,
+      observacoes: getBriefingObservacoes(),
     });
   };
 
@@ -281,7 +444,7 @@ const NovoAnuncioPage: React.FC = () => {
         {step === 4 && (
           <div>
             <h2 className="text-lg font-black text-slate-900 mb-1">Configure o anúncio</h2>
-            <p className="text-xs text-slate-500 mb-6">Ajuste as configurações de região, orçamento e objetivo</p>
+            <p className="text-xs text-slate-500 mb-6">Ajuste objetivo, região, público, interesses e orçamento</p>
 
             <div className="space-y-5">
               {/* Objetivo */}
@@ -307,20 +470,49 @@ const NovoAnuncioPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Resultado Esperado */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                  Resultado Esperado
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {RESULTADOS.map(item => (
+                    <button
+                      key={item.key}
+                      onClick={() => setResultadoEsperado(item.key)}
+                      className={`p-3 rounded-xl border-2 text-left transition-all ${
+                        resultadoEsperado === item.key
+                          ? 'border-emerald-500 bg-emerald-50'
+                          : 'border-slate-100 hover:border-slate-200'
+                      }`}
+                    >
+                      <p className="text-xs font-black text-slate-900">{item.label}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{item.descricao}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Região */}
               <div>
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
                   Região de Exibição
                 </label>
-                <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
                   {[
-                    { tipo: 'RAIO' as const, label: `📍 Raio Local` },
-                    { tipo: 'ESTADO' as const, label: `🌎 Estadual` },
-                    { tipo: 'NACIONAL' as const, label: `🇧🇷 Nacional` },
+                    { tipo: 'RAIO' as const, label: 'Raio local' },
+                    { tipo: 'CIDADE' as const, label: 'Cidades' },
+                    { tipo: 'ESTADO' as const, label: 'Estadual' },
+                    { tipo: 'NACIONAL' as const, label: 'Brasil' },
                   ].map(r => (
                     <button
                       key={r.tipo}
-                      onClick={() => setRegiaoConfig({ tipo: r.tipo, raio_km: r.tipo === 'RAIO' ? 30 : undefined, estado: r.tipo === 'ESTADO' ? (empresa?.uf || 'SE') : undefined })}
+                      onClick={() => setRegiaoConfig({
+                        tipo: r.tipo,
+                        raio_km: r.tipo === 'RAIO' ? 30 : undefined,
+                        estado: r.tipo === 'ESTADO' || r.tipo === 'CIDADE' ? (empresa?.uf || 'SE') : undefined,
+                        cidades: r.tipo === 'CIDADE' ? cidadesSelecionadas : undefined,
+                      })}
                       className={`py-2 px-3 rounded-xl border-2 text-[11px] font-black transition-all ${
                         regiaoConfig.tipo === r.tipo
                           ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
@@ -331,6 +523,26 @@ const NovoAnuncioPage: React.FC = () => {
                     </button>
                   ))}
                 </div>
+                {regiaoConfig.tipo === 'CIDADE' && (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      {cidadesOpcoes.map(cidade => (
+                        <button
+                          key={cidade}
+                          onClick={() => toggleCidade(cidade)}
+                          className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                            cidadesSelecionadas.includes(cidade)
+                              ? 'bg-indigo-600 text-white border-indigo-600'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'
+                          }`}
+                        >
+                          {cidade}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-slate-400">Selecione as cidades prioritárias onde a loja deseja receber contatos.</p>
+                  </div>
+                )}
                 {regiaoConfig.tipo === 'RAIO' && (
                   <div className="flex items-center gap-3 mt-2">
                     <label className="text-xs text-slate-600 font-bold whitespace-nowrap">Raio (km):</label>
@@ -352,6 +564,107 @@ const NovoAnuncioPage: React.FC = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     </svg>
                     Centro: {empresa.cidade}{empresa.uf ? `, ${empresa.uf}` : ''}
+                  </p>
+                )}
+              </div>
+
+              {/* Público */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                  Público para Loja de Carros
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {PUBLICOS.map(item => (
+                    <button
+                      key={item.key}
+                      onClick={() => setPublicoPerfil(item.key)}
+                      className={`p-3 rounded-xl border-2 text-left transition-all ${
+                        publicoPerfil === item.key
+                          ? 'border-orange-500 bg-orange-50'
+                          : 'border-slate-100 hover:border-slate-200'
+                      }`}
+                    >
+                      <p className="text-xs font-black text-slate-900">{item.label}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{item.descricao}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Faixa etária */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                  Faixa Etária
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase">Min</span>
+                    <input
+                      type="number"
+                      min={18}
+                      max={80}
+                      value={idadeMin}
+                      onChange={e => setIdadeMin(Number(e.target.value))}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase">Max</span>
+                    <input
+                      type="number"
+                      min={18}
+                      max={80}
+                      value={idadeMax}
+                      onChange={e => setIdadeMax(Number(e.target.value))}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Interesses */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                  Interesses
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {INTERESSES_PADRAO.map(item => (
+                    <button
+                      key={item}
+                      onClick={() => toggleInteresse(item)}
+                      className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                        interesses.includes(item)
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <input
+                    value={novoInteresse}
+                    onChange={e => setNovoInteresse(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addInteresse();
+                      }
+                    }}
+                    placeholder="Adicionar interesse específico"
+                    className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    onClick={addInteresse}
+                    className="px-4 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
+                  >
+                    Add
+                  </button>
+                </div>
+                {interesses.length > 0 && (
+                  <p className="text-[10px] text-slate-400 mt-2">
+                    Selecionados: {interesses.join(', ')}
                   </p>
                 )}
               </div>
@@ -456,10 +769,29 @@ const NovoAnuncioPage: React.FC = () => {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Região</span>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Resultado</span>
                 <span className="text-xs font-bold text-slate-800">
+                  {getLabel(RESULTADOS, resultadoEsperado)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Região</span>
+                <span className="text-xs font-bold text-slate-800 text-right">
                   {regiaoConfig.tipo === 'RAIO' ? `${regiaoConfig.raio_km}km local` :
-                   regiaoConfig.tipo === 'ESTADO' ? 'Estadual' : 'Nacional'}
+                   regiaoConfig.tipo === 'CIDADE' ? cidadesSelecionadas.join(', ') :
+                   regiaoConfig.tipo === 'ESTADO' ? `Estado ${empresa?.uf || ''}` : 'Nacional'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Público</span>
+                <span className="text-xs font-bold text-slate-800 text-right">
+                  {getLabel(PUBLICOS, publicoPerfil)} · {idadeMin}-{idadeMax} anos
+                </span>
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Interesses</span>
+                <span className="text-xs font-bold text-slate-800 text-right">
+                  {interesses.join(', ')}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -493,7 +825,7 @@ const NovoAnuncioPage: React.FC = () => {
             {/* Info box */}
             <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl">
               <p className="text-[11px] text-blue-700 leading-relaxed">
-                <span className="font-black">ℹ️ Próximo passo:</span> Após criar, clique em "Impulsionar" no card da campanha para ser direcionado à plataforma {PLATFORMS.find(p => p.key === selectedPlatform)?.label} com os dados pré-configurados.
+                <span className="font-black">Próximo passo:</span> após criar, clique em "Impulsionar" no card da campanha para abrir a plataforma {PLATFORMS.find(p => p.key === selectedPlatform)?.label} com o briefing pré-configurado.
               </p>
             </div>
           </div>

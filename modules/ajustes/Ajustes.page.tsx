@@ -10,6 +10,7 @@ const AjustesPage: React.FC = () => {
         { label: 'Dados da Empresa', path: '/ajustes/empresa', status: 'pronto' },
         { label: 'Contas Bancárias', path: '/ajustes/contas-bancarias', status: 'pronto' },
         { label: 'Saldo Inicial', path: '/ajustes/saldo-inicial', status: 'pronto' },
+        { label: 'Site Público', path: '/ajustes/site-publico', status: 'pronto' },
         { label: 'Usuários e Acessos', path: '/ajustes/usuarios', status: 'pronto' },
         { label: 'Marca D\'água', path: '/ajustes/marca-dagua', status: 'pronto' },
         { label: 'Quadro de Sócios', path: '/ajustes/socios', status: 'pronto' },

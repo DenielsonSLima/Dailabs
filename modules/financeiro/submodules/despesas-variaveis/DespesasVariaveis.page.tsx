@@ -10,7 +10,11 @@ import DespesaVariavelForm from './components/DespesaVariavelForm';
 import ModalBaixa from '../components/ModalBaixa';
 import ConfirmModal from '../../../../components/ConfirmModal';
 
-const DespesasVariaveisPage: React.FC = () => {
+interface DespesasVariaveisPageProps {
+  modoUnificado?: boolean;
+}
+
+const DespesasVariaveisPage: React.FC<DespesasVariaveisPageProps> = ({ modoUnificado = false }) => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<VariaveisTab>('MES_ATUAL');
   const [titulos, setTitulos] = useState<ITituloVariavel[]>([]);
@@ -133,8 +137,8 @@ const DespesasVariaveisPage: React.FC = () => {
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">Despesas Variáveis</h2>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">Gestão de gastos operacionais e eventuais</p>
+          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">{modoUnificado ? 'Despesas' : 'Despesas Variáveis'}</h2>
+          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">{modoUnificado ? 'Gestão simplificada de despesas financeiras' : 'Gestão de gastos operacionais e eventuais'}</p>
         </div>
         <button
           onClick={() => setIsFormOpen(true)}
@@ -198,7 +202,7 @@ const DespesasVariaveisPage: React.FC = () => {
             setTituloEditando(null); 
             queryClient.invalidateQueries({ queryKey: ['caixa_dashboard'] });
             loadData(true); 
-            setToast({ type: 'success', message: `Despesa variável ${tituloEditando ? 'atualizada' : 'lançada'} com sucesso!` }); 
+            setToast({ type: 'success', message: `Despesa ${tituloEditando ? 'atualizada' : 'lançada'} com sucesso!` }); 
           }}
         />
       )}
