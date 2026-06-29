@@ -10,10 +10,22 @@ interface Props {
 }
 
 const QuickPreviewModal: React.FC<Props> = ({ isOpen, onClose, onDownload, title, children }) => {
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 top-0 left-0 w-full h-full z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col no-print animate-in fade-in duration-300">
+    <div
+      className="fixed inset-0 z-[10000] bg-slate-950/90 backdrop-blur-md flex flex-col no-print animate-in fade-in duration-300"
+      style={{ width: '100vw', height: '100dvh', minHeight: '100dvh' }}
+    >
       
       {/* Top Toolbar */}
       <div className="h-20 bg-slate-900 border-b border-white/10 flex items-center justify-between px-8 shrink-0">

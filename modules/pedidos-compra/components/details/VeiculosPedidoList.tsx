@@ -38,7 +38,7 @@ const VeiculosPedidoList: React.FC<Props> = ({ pedido, onUnlink, isConcluido }) 
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                </svg>
             </div>
-            Adicionar Dados do Veículo
+            Adicionar Veículos
           </button>
         )}
       </div>

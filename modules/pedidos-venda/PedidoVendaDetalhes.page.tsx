@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { PedidosVendaService } from './pedidos-venda.service';
 import { PedidosVendaRealtime } from './pedidos-venda.realtime';
@@ -26,8 +26,10 @@ import ModalConfirmacaoVenda from './components/details/ModalConfirmacaoVenda';
 
 const PedidoVendaDetalhesPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const vehicleSectionRef = useRef<HTMLElement | null>(null);
   const [pedido, setPedido] = useState<IPedidoVenda | null>(null);
   const [veiculosDisponiveis, setVeiculosDisponiveis] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +39,7 @@ const PedidoVendaDetalhesPage: React.FC = () => {
   const [showDelete, setShowDelete] = useState(false);
   const [unlinkVehicleId, setUnlinkVehicleId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const shouldOpenVehicleSelector = new URLSearchParams(location.search).get('adicionar-veiculo') === '1';
 
   useEffect(() => {
     loadData();
@@ -45,6 +48,14 @@ const PedidoVendaDetalhesPage: React.FC = () => {
     const sub = PedidosVendaRealtime.subscribe(() => loadData(true));
     return () => { sub.unsubscribe(); };
   }, [id]);
+
+  useEffect(() => {
+    if (!shouldOpenVehicleSelector || loading || !pedido) return;
+    const timeoutId = window.setTimeout(() => {
+      vehicleSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+    return () => window.clearTimeout(timeoutId);
+  }, [shouldOpenVehicleSelector, loading, pedido]);
 
   async function loadData(silent = false) {
     if (!id) return;
@@ -302,7 +313,7 @@ const PedidoVendaDetalhesPage: React.FC = () => {
       <VendaAnalyticsKpis pedido={pedido} />
 
       {/* 5. Ativo Negociado (Padrão Grid Fixo 380px) */}
-      <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-6 md:p-8">
+      <section ref={vehicleSectionRef} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-6 md:p-8">
         <VeiculosVendaList
           pedido={pedido}
           veiculosDisponiveis={veiculosDisponiveis}
@@ -310,6 +321,7 @@ const PedidoVendaDetalhesPage: React.FC = () => {
           onUnlink={handleUnlinkVehicle}
           isConcluido={pedido.status === 'CONCLUIDO'}
           actionLoading={actionLoading}
+          autoOpenSelector={shouldOpenVehicleSelector}
         />
       </section>
 

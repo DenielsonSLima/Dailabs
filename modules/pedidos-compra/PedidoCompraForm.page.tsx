@@ -72,6 +72,10 @@ const PedidoCompraFormPage: React.FC = () => {
     onSuccess: (result) => {
       invalidatePedidosCompraOverview(queryClient);
       invalidatePedidoCompraDetails(queryClient, result.id);
+      if (!id && result.status === 'RASCUNHO') {
+        navigate(`/pedidos-compra/${result.id}/adicionar-veiculo`);
+        return;
+      }
       navigate(`/pedidos-compra/${result.id}`);
     },
     onError: (err: any) => {

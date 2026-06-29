@@ -76,6 +76,10 @@ const VendaFormPage: React.FC = () => {
     onSuccess: (result) => {
       invalidatePedidosVendaOverview(queryClient);
       invalidatePedidoVendaDetails(queryClient, result.id);
+      if (!id && result.status === 'RASCUNHO') {
+        navigate(`/pedidos-venda/${result.id}?adicionar-veiculo=1`);
+        return;
+      }
       navigate(`/pedidos-venda/${result.id}`);
     },
     onError: (err: any) => {

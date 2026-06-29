@@ -22,6 +22,15 @@ const RelatoriosQuickPreview: React.FC<Props> = ({ isOpen, onClose, title, child
     }
   }, [isOpen]);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleDownload = async () => {
@@ -108,7 +117,10 @@ const RelatoriosQuickPreview: React.FC<Props> = ({ isOpen, onClose, title, child
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-[200] bg-slate-950/95 flex flex-col no-print animate-in fade-in duration-300 print:bg-white print:static print:block print:inset-auto print:h-auto">
+    <div
+      className="fixed inset-0 z-[10000] bg-slate-950/95 flex flex-col no-print animate-in fade-in duration-300 print:bg-white print:static print:block print:inset-auto print:h-auto"
+      style={{ width: '100vw', height: '100dvh', minHeight: '100dvh' }}
+    >
       <style>{`
         @media screen {
           .page-indicator {
@@ -168,13 +180,13 @@ const RelatoriosQuickPreview: React.FC<Props> = ({ isOpen, onClose, title, child
           }
 
           /* Oculta TUDO exceto o wrapper do conteúdo */
-          #root > *:not(.fixed.inset-0.z-\\[200\\]),
-          body > *:not(.fixed.inset-0.z-\\[200\\]) {
+          #root > *:not(.fixed.inset-0.z-\\[10000\\]),
+          body > *:not(.fixed.inset-0.z-\\[10000\\]) {
             display: none !important;
           }
           
           /* Força o modal a se comportar como um bloco normal de topo de página */
-          .fixed.inset-0.z-\\[200\\] {
+          .fixed.inset-0.z-\\[10000\\] {
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;

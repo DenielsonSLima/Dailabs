@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 export type Platform = 'FACEBOOK' | 'INSTAGRAM' | 'GOOGLE';
 export type CampanhaStatus = 'RASCUNHO' | 'ATIVO' | 'PAUSADO' | 'ENCERRADO';
 export type IntegracaoStatus = 'CONECTADO' | 'DESCONECTADO' | 'ERRO';
+export type MarketingProvider = 'META' | 'GOOGLE';
 
 export interface IMktTemplate {
   id: string;
@@ -97,6 +98,31 @@ export interface INovoAnuncioPayload {
   observacoes?: string;
   imagem_url?: string;
 }
+
+export interface IMarketingOAuthConfig {
+  provider: MarketingProvider;
+  authorizationUrl: string | null;
+  redirectUri: string;
+  scopes: string[];
+  missingEnv: string[];
+}
+
+const getRuntimeOrigin = () => (typeof window !== 'undefined' ? window.location.origin : '');
+
+const createOAuthState = (provider: MarketingProvider, platform: Platform) => {
+  const randomPart = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+  return `marketing:${provider}:${platform}:${randomPart}`;
+};
+
+const getFirstEnv = (keys: string[]) => {
+  for (const key of keys) {
+    const value = (import.meta.env as Record<string, string | undefined>)[key];
+    if (value) return value;
+  }
+  return null;
+};
 
 // ─── Service ─────────────────────────────────────────────────────────────────
 
@@ -276,6 +302,98 @@ export const MarketingAdsService = {
   },
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  getProviderFromPlatform(platform: Platform): MarketingProvider {
+    return platform === 'GOOGLE' ? 'GOOGLE' : 'META';
+  },
+
+  findIntegracaoForPlatform(integracoes: IMktIntegracao[], platform: Platform): IMktIntegracao | undefined {
+    if (platform === 'GOOGLE') {
+      return integracoes.find(i => i.platform === 'GOOGLE' && i.status === 'CONECTADO')
+        ?? integracoes.find(i => i.platform === 'GOOGLE');
+    }
+
+    return integracoes.find(i => (i.platform === 'FACEBOOK' || i.platform === 'INSTAGRAM') && i.status === 'CONECTADO')
+      ?? integracoes.find(i => i.platform === 'FACEBOOK' || i.platform === 'INSTAGRAM');
+  },
+
+  countConnectedProviders(integracoes: IMktIntegracao[]): number {
+    const hasMeta = integracoes.some(i => (i.platform === 'FACEBOOK' || i.platform === 'INSTAGRAM') && i.status === 'CONECTADO');
+    const hasGoogle = integracoes.some(i => i.platform === 'GOOGLE' && i.status === 'CONECTADO');
+    return Number(hasMeta) + Number(hasGoogle);
+  },
+
+  buildOAuthAuthorizationUrl(platform: Platform, persistState = true): IMarketingOAuthConfig {
+    const provider = this.getProviderFromPlatform(platform);
+    const origin = getRuntimeOrigin();
+    const state = createOAuthState(provider, platform);
+
+    if (persistState && typeof window !== 'undefined') {
+      window.sessionStorage.setItem('marketing_oauth_state', state);
+      window.sessionStorage.setItem('marketing_oauth_platform', platform);
+    }
+
+    if (provider === 'META') {
+      const appId = getFirstEnv(['VITE_META_APP_ID', 'VITE_FACEBOOK_APP_ID']);
+      const redirectUri = getFirstEnv(['VITE_META_REDIRECT_URI', 'VITE_FACEBOOK_REDIRECT_URI'])
+        ?? `${origin}/marketing/oauth/meta/callback`;
+      const loginConfigId = getFirstEnv(['VITE_META_LOGIN_CONFIG_ID', 'VITE_FACEBOOK_LOGIN_CONFIG_ID']);
+      const scopes = ['ads_management', 'ads_read', 'business_management', 'pages_show_list', 'instagram_basic'];
+
+      if (!appId) {
+        return { provider, authorizationUrl: null, redirectUri, scopes, missingEnv: ['VITE_META_APP_ID'] };
+      }
+
+      const params = new URLSearchParams({
+        client_id: appId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        state,
+        auth_type: 'rerequest',
+      });
+      if (loginConfigId) {
+        params.set('config_id', loginConfigId);
+      } else {
+        params.set('scope', scopes.join(','));
+      }
+
+      return {
+        provider,
+        authorizationUrl: `https://www.facebook.com/dialog/oauth?${params.toString()}`,
+        redirectUri,
+        scopes,
+        missingEnv: [],
+      };
+    }
+
+    const clientId = getFirstEnv(['VITE_GOOGLE_ADS_CLIENT_ID', 'VITE_GOOGLE_CLIENT_ID']);
+    const redirectUri = getFirstEnv(['VITE_GOOGLE_ADS_REDIRECT_URI', 'VITE_GOOGLE_REDIRECT_URI'])
+      ?? `${origin}/marketing/oauth/google/callback`;
+    const scopes = ['https://www.googleapis.com/auth/adwords'];
+
+    if (!clientId) {
+      return { provider, authorizationUrl: null, redirectUri, scopes, missingEnv: ['VITE_GOOGLE_ADS_CLIENT_ID'] };
+    }
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: scopes.join(' '),
+      access_type: 'offline',
+      prompt: 'consent',
+      include_granted_scopes: 'true',
+      state,
+    });
+
+    return {
+      provider,
+      authorizationUrl: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+      redirectUri,
+      scopes,
+      missingEnv: [],
+    };
+  },
 
   /**
    * Gera URL de impulsionamento no Facebook Ads Manager com parâmetros pré-preenchidos.

@@ -1,5 +1,30 @@
 # Histórico de Alterações do Projeto
 
+## [2026-06-29] — Feature: Integração OAuth no Hub de Marketing e Refinamento de UX nos Modais
+
+**O que foi feito:**
+- **OAuth para Marketing**: Implementado fluxo completo de autenticação OAuth para Meta Ads e Google Ads em `marketing-ads.service.ts`. Adicionados componentes novos de modal de conexão e instruções de ajuda (`MarketingConnectModal.tsx`, `MarketingIntegrationHelp.tsx`).
+- **Bloqueio de Scroll do Body (UX)**: Refatorados os modais `QuickPreviewModal` (caixa, relatórios e detalhes de pedido de compra) para gerenciar o bloqueio de overflow no body (`overflow: 'hidden'`) durante a abertura e restaurar o estado ao fechar.
+- **Detalhamento de Veículos**: Ajustes visuais e de processamento de listagem nas tabelas de veículos associadas a compras e vendas (`VeiculosPedidoList`, `VeiculosVendaList` e `PedidoVendaDetalhes`).
+
+**Arquivos afetados:**
+- `modules/caixa/components/QuickPreviewModal.tsx` [MODIFY]
+- `modules/marketing/AnuncioHub.page.tsx` [MODIFY]
+- `modules/marketing/Marketing.page.tsx` [MODIFY]
+- `modules/marketing/components/PlataformaConnect.tsx` [MODIFY]
+- `modules/marketing/marketing-ads.service.ts` [MODIFY]
+- `modules/marketing/components/MarketingConnectModal.tsx` [NEW]
+- `modules/marketing/components/MarketingIntegrationHelp.tsx` [NEW]
+- `modules/pedidos-compra/PedidoCompraForm.page.tsx` [MODIFY]
+- `modules/pedidos-compra/components/details/QuickPreviewModal.tsx` [MODIFY]
+- `modules/pedidos-compra/components/details/VeiculosPedidoList.tsx` [MODIFY]
+- `modules/pedidos-venda/PedidoVendaDetalhes.page.tsx` [MODIFY]
+- `modules/pedidos-venda/VendaForm.page.tsx` [MODIFY]
+- `modules/pedidos-venda/components/details/VeiculosVendaList.tsx` [MODIFY]
+- `modules/relatorios/components/RelatoriosQuickPreview.tsx` [MODIFY]
+
+---
+
 ## [2026-06-28] — Refinamento: Suporte a Múltiplas Plataformas no Wizard de Criação de Anúncios
 
 **O que foi feito:**

@@ -18,7 +18,7 @@ const platformInfo: Record<Platform, {
 }> = {
   FACEBOOK: {
     nome: 'Facebook Ads',
-    descricao: 'Campanhas no Feed, Reels e Marketplace',
+    descricao: 'Meta Ads: Feed, Reels e Marketplace',
     gradient: 'from-[#1877F2] to-[#0d5dbf]',
     bg: 'bg-[#1877F2]/10',
     logo: (
@@ -29,7 +29,7 @@ const platformInfo: Record<Platform, {
   },
   INSTAGRAM: {
     nome: 'Instagram Ads',
-    descricao: 'Feed, Stories, Reels e Explore',
+    descricao: 'Usa a mesma conta Meta Ads do Facebook',
     gradient: 'from-[#E4405F] via-[#C13584] to-[#833AB4]',
     bg: 'bg-[#E4405F]/10',
     logo: (
@@ -63,6 +63,7 @@ const PlataformaConnect: React.FC<PlataformaConnectProps> = ({
 }) => {
   const info = platformInfo[platform];
   const isConnected = integracao?.status === 'CONECTADO';
+  const isMetaPlatform = platform === 'FACEBOOK' || platform === 'INSTAGRAM';
 
   return (
     <div className={`relative bg-white rounded-2xl border-2 shadow-sm overflow-hidden transition-all duration-300 ${
@@ -93,24 +94,30 @@ const PlataformaConnect: React.FC<PlataformaConnectProps> = ({
         {/* Connected Info */}
         {isConnected && integracao && (
           <div className="mb-4 p-3 bg-slate-50 rounded-xl space-y-2">
-            {integracao.account_name && (
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Conta</span>
-                <span className="text-xs font-bold text-slate-700 truncate max-w-[140px]">{integracao.account_name}</span>
-              </div>
-            )}
-            {integracao.saldo_disponivel !== null && integracao.saldo_disponivel !== undefined && (
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Saldo</span>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{isMetaPlatform ? 'Conta Meta' : 'Conta'}</span>
+              <span className="text-xs font-bold text-slate-700 truncate max-w-[140px]">{integracao.account_name || 'Aguardando sync'}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Saldo</span>
+              {integracao.saldo_disponivel !== null && integracao.saldo_disponivel !== undefined ? (
                 <span className="text-sm font-black text-emerald-600">
                   {MarketingAdsService.formatarMoeda(integracao.saldo_disponivel)}
                 </span>
-              </div>
-            )}
+              ) : (
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-600">Aguardando API</span>
+              )}
+            </div>
             {integracao.ad_account_id && (
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">ID da Conta</span>
                 <span className="text-[10px] font-mono text-slate-600">{integracao.ad_account_id}</span>
+              </div>
+            )}
+            {integracao.updated_at && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Sync</span>
+                <span className="text-[10px] font-bold text-slate-500">{new Date(integracao.updated_at).toLocaleString('pt-BR')}</span>
               </div>
             )}
           </div>
@@ -151,7 +158,7 @@ const PlataformaConnect: React.FC<PlataformaConnectProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
               </svg>
             )}
-            Conectar conta
+            {isMetaPlatform ? 'Conectar Meta' : 'Conectar conta'}
           </button>
         )}
       </div>

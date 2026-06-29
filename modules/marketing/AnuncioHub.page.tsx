@@ -6,7 +6,6 @@ import {
   MarketingAdsService,
   Platform,
   IMktCampanha,
-  IMktIntegracao,
 } from './marketing-ads.service';
 import {
   invalidateMarketingCampanhas,
@@ -15,21 +14,18 @@ import {
 } from './marketing.query-invalidation';
 import PlataformaConnect from './components/PlataformaConnect';
 import CampanhaCard from './components/CampanhaCard';
+import MarketingConnectModal from './components/MarketingConnectModal';
+import MarketingIntegrationHelp from './components/MarketingIntegrationHelp';
 
 const PLATFORMS: Platform[] = ['FACEBOOK', 'INSTAGRAM', 'GOOGLE'];
 
 const AnuncioHubPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'campanhas' | 'conexoes'>('campanhas');
+  const [activeTab, setActiveTab] = useState<'campanhas' | 'conexoes' | 'ajuda'>('campanhas');
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [connectingPlatform, setConnectingPlatform] = useState<Platform | null>(null);
-  const [connectForm, setConnectForm] = useState({
-    account_name: '',
-    ad_account_id: '',
-    access_token: '',
-    saldo_disponivel: '',
-  });
+  const [authorizingPlatform, setAuthorizingPlatform] = useState<Platform | null>(null);
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
@@ -72,17 +68,6 @@ const AnuncioHubPage: React.FC = () => {
     onError: () => toast.error('Erro ao desconectar conta.'),
   });
 
-  const conectarMutation = useMutation({
-    mutationFn: (payload: Partial<IMktIntegracao>) => MarketingAdsService.saveIntegracao(payload),
-    onSuccess: () => {
-      invalidateMarketingIntegracoes(queryClient);
-      toast.success('Conta conectada com sucesso!');
-      setShowConnectModal(false);
-      setConnectForm({ account_name: '', ad_account_id: '', access_token: '', saldo_disponivel: '' });
-    },
-    onError: () => toast.error('Erro ao conectar conta.'),
-  });
-
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleConectar = (platform: Platform) => {
@@ -90,23 +75,21 @@ const AnuncioHubPage: React.FC = () => {
     setShowConnectModal(true);
   };
 
-  const handleSaveConexao = () => {
-    if (!connectingPlatform || !connectForm.account_name) {
-      toast.error('Informe o nome da conta.');
+  const handleStartOAuth = () => {
+    if (!connectingPlatform) return;
+
+    const config = MarketingAdsService.buildOAuthAuthorizationUrl(connectingPlatform);
+    if (!config.authorizationUrl) {
+      toast.error(`Configure ${config.missingEnv.join(', ')} para liberar o login ${config.provider === 'META' ? 'Meta' : 'Google Ads'}.`);
       return;
     }
-    conectarMutation.mutate({
-      platform: connectingPlatform,
-      account_name: connectForm.account_name,
-      ad_account_id: connectForm.ad_account_id || null,
-      access_token: connectForm.access_token || null,
-      saldo_disponivel: connectForm.saldo_disponivel ? parseFloat(connectForm.saldo_disponivel) : null,
-      status: 'CONECTADO',
-    });
+
+    setAuthorizingPlatform(connectingPlatform);
+    window.location.assign(config.authorizationUrl);
   };
 
   const handleImpulsionar = (campanha: IMktCampanha) => {
-    const integracao = integracoes.find(i => i.platform === campanha.platform);
+    const integracao = MarketingAdsService.findIntegracaoForPlatform(integracoes, campanha.platform);
     const foto = campanha.veiculo?.fotos?.[0]?.url;
     const url = MarketingAdsService.gerarUrlImpulsionamento(campanha.platform, {
       ad_account_id: integracao?.ad_account_id ?? undefined,
@@ -130,15 +113,7 @@ const AnuncioHubPage: React.FC = () => {
   const totalOrcamento = campanhas
     .filter(c => c.status === 'ATIVO')
     .reduce((sum, c) => sum + (c.orcamento_diario ?? 0), 0);
-  const totalConectadas = integracoes.filter(i => i.status === 'CONECTADO').length;
-
-  const platformData = {
-    FACEBOOK: { label: 'Facebook', color: '#1877F2' },
-    INSTAGRAM: { label: 'Instagram', color: '#E4405F' },
-    GOOGLE: { label: 'Google', color: '#4285F4' },
-  };
-
-  const connectingPlatformData = connectingPlatform ? platformData[connectingPlatform] : null;
+  const totalConectadas = MarketingAdsService.countConnectedProviders(integracoes);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
@@ -192,7 +167,7 @@ const AnuncioHubPage: React.FC = () => {
           },
           {
             label: 'Contas Conectadas',
-            value: `${totalConectadas} / ${PLATFORMS.length}`,
+            value: `${totalConectadas} / 2`,
             icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>,
             color: 'from-amber-500 to-orange-600',
           },
@@ -212,6 +187,7 @@ const AnuncioHubPage: React.FC = () => {
         {[
           { key: 'campanhas' as const, label: 'Campanhas', count: campanhas.length },
           { key: 'conexoes' as const, label: 'Conexões', count: integracoes.filter(i => i.status === 'CONECTADO').length },
+          { key: 'ajuda' as const, label: 'Ajuda' },
         ].map(tab => (
           <button
             key={tab.key}
@@ -223,11 +199,13 @@ const AnuncioHubPage: React.FC = () => {
             }`}
           >
             {tab.label}
-            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
-              activeTab === tab.key ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-500'
-            }`}>
-              {tab.count}
-            </span>
+            {tab.count !== undefined && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
+                activeTab === tab.key ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-500'
+              }`}>
+                {tab.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -283,7 +261,7 @@ const AnuncioHubPage: React.FC = () => {
         <div>
           <div className="grid md:grid-cols-3 gap-4">
             {PLATFORMS.map(platform => {
-              const integracao = integracoes.find(i => i.platform === platform) ?? null;
+              const integracao = MarketingAdsService.findIntegracaoForPlatform(integracoes, platform) ?? null;
               return (
                 <PlataformaConnect
                   key={platform}
@@ -291,7 +269,7 @@ const AnuncioHubPage: React.FC = () => {
                   integracao={integracao}
                   onConectar={handleConectar}
                   onDesconectar={(id) => desconectarMutation.mutate(id)}
-                  isLoading={conectarMutation.isPending && connectingPlatform === platform}
+                  isLoading={authorizingPlatform === platform}
                 />
               );
             })}
@@ -306,9 +284,7 @@ const AnuncioHubPage: React.FC = () => {
               <div>
                 <p className="text-xs font-black text-amber-900">Como funciona a integração?</p>
                 <p className="text-xs text-amber-800 mt-1 leading-relaxed">
-                  Informe os dados da sua conta de anúncios para que o sistema possa exibir o saldo disponível e redirecionar 
-                  para a plataforma correta ao impulsionar. A criação de campanhas automática está em desenvolvimento 
-                  (requer aprovação das APIs da Meta e Google).
+                  Facebook e Instagram usam a mesma autorização Meta Ads. O saldo, moeda, conta e gastos devem ser sincronizados pelas APIs oficiais após o login; a criação automática de campanhas depende de backend com tokens seguros e aprovação da Meta/Google.
                 </p>
               </div>
             </div>
@@ -316,98 +292,18 @@ const AnuncioHubPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Modal de Conexão Manual ─────────────────────────────────────────── */}
+      {activeTab === 'ajuda' && (
+        <MarketingIntegrationHelp />
+      )}
+
+      {/* ── Modal de Conexão OAuth ──────────────────────────────────────────── */}
       {showConnectModal && connectingPlatform && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-lg font-black text-slate-900">
-                    Conectar {connectingPlatformData?.label}
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Informe os dados da sua conta de anúncios</p>
-                </div>
-                <button
-                  onClick={() => setShowConnectModal(false)}
-                  className="p-2 rounded-xl hover:bg-slate-100 transition-colors"
-                >
-                  <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
-                    Nome da Conta *
-                  </label>
-                  <input
-                    type="text"
-                    value={connectForm.account_name}
-                    onChange={e => setConnectForm(f => ({ ...f, account_name: e.target.value }))}
-                    placeholder="Ex: Hidrocar Veículos"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
-                    ID da Conta de Anúncios
-                  </label>
-                  <input
-                    type="text"
-                    value={connectForm.ad_account_id}
-                    onChange={e => setConnectForm(f => ({ ...f, ad_account_id: e.target.value }))}
-                    placeholder="Ex: act_123456789"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
-                    Saldo Disponível (R$)
-                  </label>
-                  <input
-                    type="number"
-                    value={connectForm.saldo_disponivel}
-                    onChange={e => setConnectForm(f => ({ ...f, saldo_disponivel: e.target.value }))}
-                    placeholder="Ex: 500.00"
-                    step="0.01"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    Consulte seu saldo em {connectingPlatform === 'GOOGLE' ? 'ads.google.com' : 'business.facebook.com'} e informe aqui
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowConnectModal(false)}
-                  className="flex-1 py-3 px-4 bg-slate-100 text-slate-700 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSaveConexao}
-                  disabled={conectarMutation.isPending}
-                  className="flex-1 py-3 px-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow hover:opacity-90 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-                >
-                  {conectarMutation.isPending ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Conectar
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <MarketingConnectModal
+          platform={connectingPlatform}
+          isAuthorizing={authorizingPlatform === connectingPlatform}
+          onClose={() => setShowConnectModal(false)}
+          onAuthorize={handleStartOAuth}
+        />
       )}
     </div>
   );
