@@ -35,6 +35,34 @@ export interface VeiculoConsultaReponse {
       url: string;
       valor: number;
     }[];
+    data?: {
+      anoFabricacao: number;
+      anoModelo: string;
+      categoria: string;
+      chassi?: string;
+      codigoFipe: string;
+      combustivel: string;
+      cor?: string;
+      extra: any;
+      historico: {
+        mes: string;
+        valor: number;
+      }[];
+      marca: string;
+      mesReferencia: string;
+      modelo: string;
+      principal: boolean;
+      url: string;
+      valor: number;
+    }[];
+    veiculo?: {
+      chassi?: string;
+      combustivel?: string;
+      cor?: string;
+      tipo_veiculo?: string;
+      uf?: string;
+      municipio?: string;
+    };
   };
 }
 

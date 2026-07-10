@@ -173,12 +173,20 @@ export async function consultarEParsear(placa: string): Promise<DadosParsedAPI> 
   const apiResponse = await consultaPlacaService.consultar(placa);
 
   // Pegar o resultado principal
-  const resultados = apiResponse.data?.resultados || [];
-  const principal = resultados.find(r => r.principal) || resultados[0];
+  const resultadosFipe = apiResponse.data?.resultados || apiResponse.data?.data || [];
+  const resultadoPrincipal = resultadosFipe.find(r => r.principal) || resultadosFipe[0];
+  const dadosVeiculo = apiResponse.data?.veiculo || {};
 
-  if (!principal) {
+  if (!resultadoPrincipal) {
     throw new Error('Nenhum resultado encontrado para esta placa.');
   }
+
+  const principal = {
+    ...resultadoPrincipal,
+    chassi: resultadoPrincipal.chassi || dadosVeiculo.chassi || '',
+    cor: resultadoPrincipal.cor || dadosVeiculo.cor || '',
+    combustivel: resultadoPrincipal.combustivel || dadosVeiculo.combustivel || '',
+  };
 
   let marcaNome = principal.marca.toUpperCase().trim();
   // Normalizar marcas conhecidas que vêm com prefixo na API Brasil

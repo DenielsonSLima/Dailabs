@@ -7,6 +7,35 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-application-name',
 }
 
+function normalizarRespostaApiBrasil(apiData: any) {
+  const resultadosAntigos = apiData?.data?.resultados
+  const resultadosNovos = apiData?.data?.data
+  const veiculo = apiData?.data?.veiculo || {}
+
+  if (Array.isArray(resultadosAntigos)) {
+    apiData.data.resultados = resultadosAntigos.map((resultado: any) => ({
+      ...resultado,
+      chassi: resultado.chassi || veiculo.chassi || '',
+      cor: resultado.cor || veiculo.cor || '',
+      combustivel: resultado.combustivel || veiculo.combustivel || '',
+    }))
+    return apiData
+  }
+
+  if (!Array.isArray(resultadosNovos)) {
+    return apiData
+  }
+
+  apiData.data.resultados = resultadosNovos.map((resultado: any) => ({
+    ...resultado,
+    chassi: resultado.chassi || veiculo.chassi || '',
+    cor: resultado.cor || veiculo.cor || '',
+    combustivel: resultado.combustivel || veiculo.combustivel || '',
+  }))
+
+  return apiData
+}
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -46,14 +75,16 @@ serve(async (req) => {
     // 1. Verificar Cache Global no Banco de Dados
     const { data: cachedRow, error: cacheError } = await supabaseClient
       .from('fipe_api_cache')
-      .select('dados_json, mes_referencia')
+      .select('dados_json, mes_referencia, updated_at')
       .eq('placa', limpaPlaca)
       .maybeSingle()
 
     const mesAtual = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(new Date())
+    const cacheAtualizadoEm = cachedRow?.updated_at ? new Date(cachedRow.updated_at) : null
+    const cacheValidoAte = cacheAtualizadoEm ? new Date(cacheAtualizadoEm.getTime() + 30 * 24 * 60 * 60 * 1000) : null
 
-    // Se existe no cache e é do mês atual, usamos o cache (Economia Total)
-    if (cachedRow && cachedRow.mes_referencia.toLowerCase() === mesAtual.toLowerCase()) {
+    // Se existe no cache e foi atualizado nos últimos 30 dias, usamos o cache (Economia Total)
+    if (cachedRow && cacheValidoAte && cacheValidoAte >= new Date()) {
       console.log(`FIPE: [EDGE] Carregando do Cache para placa: ${limpaPlaca}`)
       
       // Registrar uso (mesmo sendo cache, registramos para o contador da loja)
@@ -142,7 +173,7 @@ serve(async (req) => {
       throw new Error(`API_BRASIL_ERROR: ${apiResult.message}`)
     }
 
-    let apiData = apiResult.data
+    let apiData = normalizarRespostaApiBrasil(apiResult.data)
     console.log(`FIPE: [EDGE] Dados recebidos para placa ${limpaPlaca}`)
     
     if (apiData.error) {
@@ -152,7 +183,7 @@ serve(async (req) => {
         console.warn(`FIPE: [EDGE] Corpo da API exigiu CNPJ para tipo=${API_BRASIL_TIPO_CONSULTA}. Tentando fallback tipo=${API_BRASIL_FALLBACK_TIPO}.`)
         apiResult = await consultarApiBrasil(API_BRASIL_FALLBACK_TIPO)
         if (apiResult.ok && !apiResult.data?.error) {
-          apiData = apiResult.data
+          apiData = normalizarRespostaApiBrasil(apiResult.data)
         } else {
           const retryMessage = apiResult.message || apiResult.data?.message || bodyMessage
           throw new Error(`API_BRASIL_ERROR: ${retryMessage}`)
