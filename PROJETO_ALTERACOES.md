@@ -9,11 +9,13 @@
 - **Auto-criação para Novos Tenants**: Se a organização ainda não possui uma linha na tabela `site_conteudo`, o serviço faz uma cópia do template global (onde `organization_id` is null) e a insere no banco vinculada ao ID do tenant logado de forma automática e transparente.
 - **Resolução de Organização no Site Público (Fallback)**: Implementado método `getResolvedOrgId` em `modules/site-publico/site-publico.service.ts` para que, caso a variável de ambiente `VITE_ORGANIZATION_ID` esteja vazia/nula no ambiente de execução (como no Vercel), o site público busque a primeira empresa cadastrada no banco de dados e herde seu `organization_id`. Isso garante que o site público carregue corretamente as configurações de conteúdo (incluindo o `hero_source` como "estoque") e o estoque da empresa correta em vez de cair nos registros globais nulos.
 - **Permissão de Leitura Pública no Cadastro da Empresa (RLS)**: Criada a policy `public_read_config_empresa` na tabela `config_empresa` (`supabase/migrations/20260713_public_read_config_empresa.sql`) para permitir que usuários não autenticados (visitantes anônimos/aba privada) possam consultar os dados de contato básicos da empresa. Sem isso, a consulta de fallback de `getResolvedOrgId` retornava vazia por restrição de RLS e o site caía nas configurações globais padrão.
+- **Premium Design no Hero do Site Público**: Refatorado o componente [PublicHero.tsx](file:///Users/denielson/Desktop/Dailabs%20DriveCar/modules/site-publico/components/PublicHero.tsx) para otimizar a exibição dos veículos do estoque. O card agora exibe o logotipo oficial da montadora em destaque, a versão/motorização separada do título, a ficha técnica organizada em tags de visual premium (Ano, KM, Transmissão, Combustível) e o preço do veículo em destaque no rodapé (com preço promocional riscado se aplicável).
 - **KPIs de Despesas Variáveis**: Aplicada a migração `20260711_include_vehicle_expenses_in_variable_kpis.sql` para atualizar a RPC `get_despesas_variaveis_kpis` no banco de dados, incluindo as despesas do tipo `DESPESA_VEICULO` na aba correspondente do financeiro.
 
 **Arquivos afetados:**
 - `modules/editor-site/editor-site.service.ts` [MODIFY]
 - `modules/site-publico/site-publico.service.ts` [MODIFY]
+- `modules/site-publico/components/PublicHero.tsx` [MODIFY]
 - `supabase/migrations/20260713_public_read_config_empresa.sql` [NEW/APPLIED]
 - Banco de Dados (Tabela `public.site_conteudo`, RPC `public.get_despesas_variaveis_kpis`, Tabela `public.config_empresa`) [MIGRATIONS APPLIED]
 

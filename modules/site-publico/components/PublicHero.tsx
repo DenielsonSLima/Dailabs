@@ -32,6 +32,10 @@ interface IHeroDisplaySlide extends IHeroSlide {
   badge?: string;
   ctaLabel?: string;
   href?: string;
+  brandLogo?: string;
+  price?: number;
+  valor_promocional?: number;
+  specs?: string[];
 }
 
 /**
@@ -60,21 +64,24 @@ const buildVehicleSlide = (veiculo: IVeiculoPublic): IHeroDisplaySlide | null =>
   if (!imageUrl) return null;
 
   const nome = [veiculo.montadora?.nome, veiculo.modelo?.nome].filter(Boolean).join(' ');
-  const detalhes = [
-    veiculo.versao?.nome,
-    veiculo.motorizacao,
-    veiculo.combustivel,
-    `${veiculo.ano_fabricacao}/${veiculo.ano_modelo}`,
-    `${(veiculo.km || 0).toLocaleString('pt-BR')} km`
-  ].filter(Boolean).join(' • ');
+  const versao = [veiculo.versao?.nome, veiculo.motorizacao].filter(Boolean).join(' ');
 
   return {
     image_url: imageUrl,
     title: nome || 'Veículo em Destaque',
-    subtitle: `${detalhes}${detalhes ? ' • ' : ''}${formatCurrency(veiculo.valor_promocional || veiculo.valor_venda || 0)}`,
+    subtitle: versao || '',
     badge: 'Destaque do Estoque',
     ctaLabel: 'Ver Veículo',
-    href: `/veiculo/${veiculo.id}`
+    href: `/veiculo/${veiculo.id}`,
+    brandLogo: veiculo.montadora?.logo_url || '',
+    price: veiculo.valor_venda,
+    valor_promocional: veiculo.valor_promocional,
+    specs: [
+      `${veiculo.ano_fabricacao}/${veiculo.ano_modelo}`,
+      veiculo.km === 0 ? 'Zero Km' : `${(veiculo.km || 0).toLocaleString('pt-BR')} km`,
+      veiculo.transmissao,
+      veiculo.combustivel
+    ].filter(Boolean)
   };
 };
 
@@ -157,19 +164,71 @@ const PublicHero: React.FC<Props> = ({ slides: propSlides, veiculos = [], source
                 <div className="absolute inset-0 z-10 flex items-end pb-20">
                   <div className="max-w-7xl mx-auto px-6 w-full">
                     <div className={`max-w-2xl transition-all duration-1000 ${index === current ? 'translate-x-0 opacity-100' : '-translate-x-20 opacity-0'}`}>
-                      <div className="bg-black/40 backdrop-blur-sm rounded-2xl p-8 space-y-4">
-                        <p className="text-orange-500 text-xs font-black uppercase tracking-[0.5em]">{slide.badge}</p>
-                        <h1 className="text-4xl md:text-5xl font-black text-white leading-tight tracking-tighter uppercase drop-shadow-2xl">
-                          {slide.title}
-                        </h1>
-                        <p className="text-base md:text-lg text-white font-medium max-w-xl leading-relaxed">
-                          {slide.subtitle}
-                        </p>
-                        <div className="pt-2">
-                          <a href={slide.href} className="inline-block px-8 py-4 bg-orange-600 text-white rounded-xl font-black uppercase tracking-widest text-[11px] hover:bg-white hover:text-orange-600 transition-all shadow-2xl">
+                      <div className="bg-slate-950/75 border border-white/15 backdrop-blur-md rounded-2xl p-6 md:p-8 space-y-4 md:space-y-5 shadow-2xl">
+                        
+                        {/* Cabeçalho da Ficha */}
+                        <div className="flex items-center justify-between gap-4">
+                          <p className="text-orange-500 text-[10px] font-black uppercase tracking-[0.4em]">{slide.badge}</p>
+                          {slide.brandLogo && (
+                            <div className="w-12 h-12 bg-white rounded-xl p-1.5 flex items-center justify-center shadow-lg border border-white/20">
+                              <img src={slide.brandLogo} alt="Logo" className="max-w-full max-h-full object-contain" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Nome do Carro */}
+                        <div className="space-y-1">
+                          <h1 className="text-3xl md:text-4xl font-[950] text-white leading-none tracking-tighter uppercase">
+                            {slide.title}
+                          </h1>
+                          {slide.price && slide.subtitle && (
+                            <p className="text-xs font-black text-slate-300 uppercase tracking-widest pt-1">
+                              {slide.subtitle}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Ficha técnica em Tags */}
+                        {slide.specs && slide.specs.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {slide.specs.map((spec, sIdx) => (
+                              <span key={sIdx} className="px-2.5 py-1 bg-white/10 text-white rounded-lg text-[9px] font-black uppercase tracking-wider border border-white/5">
+                                {spec}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Se não for veículo, exibe o subtítulo normal */}
+                        {!slide.price && (
+                          <p className="text-base text-white/90 font-medium leading-relaxed">
+                            {slide.subtitle}
+                          </p>
+                        )}
+
+                        {/* Rodapé com Preço e Ação */}
+                        <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-white/10">
+                          {slide.price ? (
+                            <div className="space-y-0.5">
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Valor do Veículo</p>
+                              <div className="flex items-baseline space-x-2">
+                                <span className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none">
+                                  {formatCurrency(slide.valor_promocional || slide.price)}
+                                </span>
+                                {slide.valor_promocional && slide.valor_promocional < slide.price && (
+                                  <span className="text-sm line-through text-slate-400 font-bold">
+                                    {formatCurrency(slide.price)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : <div />}
+                          
+                          <a href={slide.href} className="inline-block px-8 py-3.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-all text-center">
                             {slide.ctaLabel}
                           </a>
                         </div>
+
                       </div>
                     </div>
                   </div>
