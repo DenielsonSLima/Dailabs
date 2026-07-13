@@ -40,7 +40,37 @@ const DEFAULT_EMPRESA: IEmpresa = {
   telefone: '(79) 99119-2361'
 };
 
+let resolvedOrgId: string | null | undefined = undefined;
+
 export const SitePublicoService = {
+
+  // Resolve o ID da organização de forma assíncrona, com cache e fallback
+  async getResolvedOrgId(): Promise<string | null> {
+    if (resolvedOrgId !== undefined) {
+      return resolvedOrgId;
+    }
+    const envOrgId = (import.meta.env.VITE_ORGANIZATION_ID as string) || null;
+    if (envOrgId) {
+      resolvedOrgId = envOrgId;
+      return envOrgId;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('config_empresa')
+        .select('organization_id')
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data?.organization_id) {
+        resolvedOrgId = data.organization_id;
+        return data.organization_id;
+      }
+    } catch (e) {
+      console.error('Erro ao resolver orgId de fallback:', e);
+    }
+    resolvedOrgId = null;
+    return null;
+  },
 
   /**
    * Retorna o ID da organização para o site público.
@@ -55,7 +85,7 @@ export const SitePublicoService = {
    */
   async getEmpresa(): Promise<IEmpresa> {
     try {
-      const orgId = this.getPublicOrgId();
+      const orgId = await this.getResolvedOrgId();
       let query = supabase.from('config_empresa').select('*');
       
       if (orgId) {
@@ -93,7 +123,7 @@ export const SitePublicoService = {
    * Busca montadoras que possuem veículos disponíveis no site de forma otimizada.
    */
   async getMontadorasComEstoque(): Promise<IMontadoraPublic[]> {
-    const orgId = this.getPublicOrgId();
+    const orgId = await this.getResolvedOrgId();
     
     let query = supabase
       .from('cad_montadoras')
@@ -134,7 +164,7 @@ export const SitePublicoService = {
    */
   async getStockData(params: IGetStockParams): Promise<IPaginatedStock> {
     const { page, pageSize, brand, minPrice, maxPrice, search, sort, includeMontadoras = true } = params;
-    const orgId = this.getPublicOrgId();
+    const orgId = await this.getResolvedOrgId();
 
     let query = supabase
       .from('est_veiculos')
@@ -209,7 +239,7 @@ export const SitePublicoService = {
    */
   async getSiteConteudo(): Promise<ISiteConteudo | null> {
     try {
-      const orgId = this.getPublicOrgId();
+      const orgId = await this.getResolvedOrgId();
       let query = supabase.from('site_conteudo').select('*');
 
       if (orgId) {
@@ -237,7 +267,7 @@ export const SitePublicoService = {
    * Cada parte é carregada e validada de forma independente para garantir resiliência.
    */
   async getHomePageData(): Promise<IPublicPageData> {
-    const orgId = this.getPublicOrgId();
+    const orgId = await this.getResolvedOrgId();
 
     let veiculosQuery = supabase
       .from('est_veiculos')
@@ -288,7 +318,7 @@ export const SitePublicoService = {
     cores: { id: string; nome: string; rgb_hex: string }[];
     empresa: IEmpresa;
   }> {
-    const orgId = this.getPublicOrgId();
+    const orgId = await this.getResolvedOrgId();
     let veiculoQuery = supabase
       .from('est_veiculos')
       .select(VEICULO_SELECT)

@@ -6,11 +6,13 @@
 - **Adicionado campo `hero_source`**: Aplicada a migração `20260627_site_publico_hero_source.sql` no banco de dados Supabase remoto, adicionando a coluna `hero_source` com a constraint check correspondente na tabela `public.site_conteudo`. Isso corrige o erro de schema cache (`PGRST204` / "Could not find the 'hero_source' column of 'site_conteudo'") que impedia a edição/salvamento do site público pelo painel administrativo ("Editor do Site").
 - **Recarregamento do Schema Cache**: Executado `NOTIFY pgrst, 'reload schema';` para garantir que o PostgREST atualizasse seu cache imediatamente.
 - **Filtragem de `site_conteudo` por Organização**: Refatorado o `EditorSiteService.getSiteContent` em `modules/editor-site/editor-site.service.ts` para resolver a organização ativa do usuário logado através do `EmpresaService.getDadosEmpresa()` e filtrar a consulta de conteúdo por `organization_id`. Isso corrige o erro `PGRST116` ("Cannot coerce the result to a single JSON object") que ocorria ao tentar atualizar o registro global/template (com `organization_id = null`) para o qual o usuário atual não tem permissão de escrita pelas regras de RLS.
-- **Auto-criação para Novos Tenants**: Se a organização ainda não possui uma linha na tabela `site_conteudo`, o serviço faz uma cópia do template global (onde `organization_id` é nulo) e a insere no banco vinculada ao ID do tenant logado de forma automática e transparente.
+- **Auto-criação para Novos Tenants**: Se a organização ainda não possui uma linha na tabela `site_conteudo`, o serviço faz uma cópia do template global (onde `organization_id` is null) e a insere no banco vinculada ao ID do tenant logado de forma automática e transparente.
+- **Resolução de Organização no Site Público (Fallback)**: Implementado método `getResolvedOrgId` em `modules/site-publico/site-publico.service.ts` para que, caso a variável de ambiente `VITE_ORGANIZATION_ID` esteja vazia/nula no ambiente de execução (como no Vercel), o site público busque a primeira empresa cadastrada no banco de dados e herde seu `organization_id`. Isso garante que o site público carregue corretamente as configurações de conteúdo (incluindo o `hero_source` como "estoque") e o estoque da empresa correta em vez de cair nos registros globais nulos.
 - **KPIs de Despesas Variáveis**: Aplicada a migração `20260711_include_vehicle_expenses_in_variable_kpis.sql` para atualizar a RPC `get_despesas_variaveis_kpis` no banco de dados, incluindo as despesas do tipo `DESPESA_VEICULO` na aba correspondente do financeiro.
 
 **Arquivos afetados:**
 - `modules/editor-site/editor-site.service.ts` [MODIFY]
+- `modules/site-publico/site-publico.service.ts` [MODIFY]
 - Banco de Dados (Tabela `public.site_conteudo`, RPC `public.get_despesas_variaveis_kpis`) [MIGRATIONS APPLIED]
 
 ---
