@@ -1,5 +1,17 @@
 # Histórico de Alterações do Projeto
 
+## [2026-07-13] — Fix: Aplicação de Migrações Pendentes no Banco de Dados (hero_source e KPIs de despesas)
+
+**O que foi feito:**
+- **Adicionado campo `hero_source`**: Aplicada a migração `20260627_site_publico_hero_source.sql` no banco de dados Supabase remoto, adicionando a coluna `hero_source` com a constraint check correspondente na tabela `public.site_conteudo`. Isso corrige o erro de schema cache (`PGRST204` / "Could not find the 'hero_source' column of 'site_conteudo'") que impedia a edição/salvamento do site público pelo painel administrativo ("Editor do Site").
+- **Recarregamento do Schema Cache**: Executado `NOTIFY pgrst, 'reload schema';` para garantir que o PostgREST atualizasse seu cache imediatamente.
+- **KPIs de Despesas Variáveis**: Aplicada a migração `20260711_include_vehicle_expenses_in_variable_kpis.sql` para atualizar a RPC `get_despesas_variaveis_kpis` no banco de dados, incluindo as despesas do tipo `DESPESA_VEICULO` na aba correspondente do financeiro.
+
+**Arquivos afetados:**
+- Banco de Dados (Tabela `public.site_conteudo`, RPC `public.get_despesas_variaveis_kpis`) [MIGRATIONS APPLIED]
+
+---
+
 ## [2026-07-09] — Fix: Sincronização em Tempo Real na Deleção de Retiradas e Correção de KPI
 
 **O que foi feito:**
