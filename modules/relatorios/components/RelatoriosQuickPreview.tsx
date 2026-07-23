@@ -43,9 +43,11 @@ const RelatoriosQuickPreview: React.FC<Props> = ({ isOpen, onClose, title, child
       const opt = {
         margin: 0,
         filename: `${title.replace(/\s+/g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 1.0 },
+        image: { type: 'jpeg', quality: 0.98 },
         html2canvas: {
-          scale: 3, // Over-sampled for extreme quality
+          scale: 2,
+          scrollY: 0,
+          scrollX: 0,
           useCORS: true,
           letterRendering: true,
           logging: false,
@@ -80,25 +82,17 @@ const RelatoriosQuickPreview: React.FC<Props> = ({ isOpen, onClose, title, child
               }
             });
 
-            // CRÍTICO: Remove TODAS as regras de quebra de página CSS dos containers.
-            // O html2pdf.js já pagina naturalmente pelo h-[297mm] de cada BaseReportLayout.
-            // Se deixarmos break-after-page, ele cria uma quebra EXTRA = página em branco.
-            const allContainers = clonedDoc.querySelectorAll('.report-container, .break-after-page');
+            // Garantir que containers não tenham margens ou bordas extras na renderização do canvas
+            const allContainers = clonedDoc.querySelectorAll('.report-container');
             allContainers.forEach((el) => {
               const htmlEl = el as HTMLElement;
-              htmlEl.style.pageBreakAfter = 'auto';
-              htmlEl.style.breakAfter = 'auto';
-              htmlEl.style.pageBreakBefore = 'auto';
-              htmlEl.style.breakBefore = 'auto';
-              htmlEl.classList.remove('break-after-page');
-              // Garante que o container não tenha margens ou bordas extras
               htmlEl.style.margin = '0';
               htmlEl.style.border = 'none';
             });
           }
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all'] }
+        pagebreak: { mode: ['css', 'legacy'] }
       };
 
       // @ts-ignore

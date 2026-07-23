@@ -98,7 +98,7 @@ const BaseReportLayout: React.FC<Props> = ({
   );
 
   return (
-    <div className={`report-container relative bg-white text-slate-900 flex flex-col font-sans print:p-0 print:border-0 ${isManualPagination ? 'w-[210mm] min-h-[297mm] h-[297mm]' : 'min-h-[297mm]'}`}>
+    <div className={`report-container html2pdf__page-break relative bg-white text-slate-900 flex flex-col font-sans print:p-0 print:border-0 ${isManualPagination ? 'w-[210mm] min-h-[297mm] h-[297mm]' : 'min-h-[297mm]'}`}>
 
       {/* Cabeçalho de Estilo - Capturado pelo PDF */}
       <style>{`

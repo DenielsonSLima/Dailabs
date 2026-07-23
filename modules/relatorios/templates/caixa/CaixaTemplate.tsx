@@ -63,11 +63,12 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
     const partnerTotals = Array.from(partnerTotalsMap.entries()).map(([nome, total]) => ({ nome, total }));
     const totalEstoque = partnerTotals.reduce((acc, pt) => acc + pt.total, 0);
 
-    // Split vehicles into chunks of 4 per page (5 overflows with header/footer)
     const vehicleChunks: any[][] = [];
     for (let i = 0; i < sortedVehicles.length; i += 4) {
         vehicleChunks.push(sortedVehicles.slice(i, i + 4));
     }
+    const hasAnotacoes = anotacoes && anotacoes.length > 0;
+    const totalPagesCalculated = 3 + vehicleChunks.length + (hasAnotacoes ? 1 : 0);
 
     return (
         <div className="report-container" style={{ backgroundColor: '#f8fafc' }}>
@@ -94,17 +95,9 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
         .partner-row { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 0.75rem; font-size: 10px; }
       `}</style>
 
-            {/* PAGE 1: KPIs and Charts */}
-            <BaseReportLayout title="Relatório Financeiro & Patrimônio" empresa={empresa} watermark={watermark} subtitle={periodo} pageNumber={1} totalPages={3 + vehicleChunks.length} isManualPagination={true}>
+            <BaseReportLayout title="Relatório Financeiro & Patrimônio" empresa={empresa} watermark={watermark} subtitle={periodo} pageNumber={1} totalPages={totalPagesCalculated} isManualPagination={true}>
                 <div style={{ padding: '0.4rem 1.5rem 1rem 1.5rem' }}>
-                    {/* KPIs Section */}
-                    <div className="kpi-grid" style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(4, 1fr)',
-                        gap: '0.5rem',
-                        width: '100%',
-                        marginBottom: '1rem'
-                    }}>
+                    <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', width: '100%', marginBottom: '1rem' }}>
                         {kpis.map((k, i) => (
                             <div key={i} className={`kpi-card ${i < 2 ? 'kpi-card-main' : ''}`} style={{ marginBottom: 0, minWidth: 0 }}>
                                 <div className="kpi-icon" style={{ backgroundColor: i < 2 ? 'rgba(255,255,255,0.2)' : `${k.color}15`, color: i < 2 ? 'white' : k.color }}>
@@ -122,7 +115,6 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                        {/* PERFORMANCE CHART */}
                         <div className="report-card" style={{ marginBottom: 0 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                                 <div>
@@ -150,7 +142,6 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                             </div>
 
                             <div style={{ position: 'relative', height: '150px', borderLeft: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0', marginLeft: '2.5rem' }}>
-                                {/* Y-axis labels */}
                                 <div style={{ position: 'absolute', left: '-2.8rem', top: 0, bottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontSize: '7px', fontWeight: 'bold', color: '#cbd5e1', textAlign: 'right', width: '2.5rem' }}>
                                     <span>{fmtK(maxVal)}</span>
                                     <span>{fmtK(maxVal * 0.75)}</span>
@@ -158,8 +149,6 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                                     <span>{fmtK(maxVal * 0.25)}</span>
                                     <span>0</span>
                                 </div>
-
-                                {/* Bars */}
                                 <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
                                     {history.map((m: any, i: number) => {
                                         const hF = Math.max((m.faturado / maxVal) * 100, 0);
@@ -167,7 +156,6 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                                         const hD = Math.max((m.despesas / maxVal) * 100, 0);
                                         return (
                                             <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', position: 'relative', padding: '0 10px' }}>
-                                                {/* Bar group */}
                                                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', width: '100%', maxWidth: '60px', height: '100%', justifyContent: 'center', paddingBottom: '18px' }}>
                                                     <div style={{ flex: 1, height: `${hF}%`, background: '#4f46e5', borderTopLeftRadius: '2px', borderTopRightRadius: '2px', minHeight: hF > 0 ? '3px' : '0', position: 'relative' }}>
                                                         {hF > 5 && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: '#818cf8', borderTopLeftRadius: '2px', borderTopRightRadius: '2px' }}></div>}
@@ -179,31 +167,20 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                                                         {hD > 5 && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: '#fda4af', borderTopLeftRadius: '2px', borderTopRightRadius: '2px' }}></div>}
                                                     </div>
                                                 </div>
-                                                {/* Month label */}
                                                 <div style={{ position: 'absolute', bottom: '0', fontSize: '8px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center' }}>{m.label}</div>
                                             </div>
                                         );
                                     })}
                                 </div>
-
-                                {/* Profit line - SVG curve + HTML dots */}
                                 {history.length > 0 && (() => {
                                     const profitMax = Math.max(...history.map((m: any) => Math.abs(m.lucro || 0)), 50000);
                                     const svgWidth = 350;
                                     const svgHeight = 150;
-                                    
                                     const dots = history.map((m: any, i: number) => {
                                         const xPercent = (i + 0.5) / history.length;
                                         const yPercent = Math.max(0.05, Math.min(0.85, 1 - ((m.lucro || 0) / profitMax) * 0.7 - 0.15));
-                                        return { 
-                                            x: xPercent * svgWidth, 
-                                            y: yPercent * svgHeight, 
-                                            px: xPercent * 100, 
-                                            py: yPercent * 100, 
-                                            value: m.lucro || 0 
-                                        };
+                                        return { x: xPercent * svgWidth, y: yPercent * svgHeight, px: xPercent * 100, py: yPercent * 100, value: m.lucro || 0 };
                                     });
-
                                     let pathData = `M ${dots[0].x},${dots[0].y}`;
                                     for (let i = 0; i < dots.length - 1; i++) {
                                         const curr = dots[i];
@@ -212,7 +189,6 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                                         const cp2x = curr.x + (next.x - curr.x) * 2 / 3;
                                         pathData += ` C ${cp1x},${curr.y} ${cp2x},${next.y} ${next.x},${next.y}`;
                                     }
-
                                     return (
                                         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                                             <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', zIndex: 5 }}>
@@ -220,19 +196,8 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                                             </svg>
                                             {dots.map((dot, i) => (
                                                 <React.Fragment key={`profit-${i}`}>
-                                                    {/* Dot */}
-                                                    <div style={{
-                                                        position: 'absolute', left: `${dot.px}%`, top: `${dot.py}%`,
-                                                        width: '8px', height: '8px', background: '#064e3b', borderRadius: '50%',
-                                                        transform: 'translate(-50%, -50%)', zIndex: 10,
-                                                        border: '2px solid #10b981', boxShadow: '0 0 4px rgba(16,185,129,0.3)'
-                                                    }}></div>
-                                                    {/* Value label */}
-                                                    <div style={{
-                                                        position: 'absolute', left: `${dot.px}%`, top: `calc(${dot.py}% - 14px)`,
-                                                        transform: 'translateX(-50%)', fontSize: '8px', fontWeight: 'black',
-                                                        color: '#10b981', whiteSpace: 'nowrap', zIndex: 11
-                                                    }}>{fmtK(dot.value)}</div>
+                                                    <div style={{ position: 'absolute', left: `${dot.px}%`, top: `${dot.py}%`, width: '8px', height: '8px', background: '#064e3b', borderRadius: '50%', transform: 'translate(-50%, -50%)', zIndex: 10, border: '2px solid #10b981', boxShadow: '0 0 4px rgba(16,185,129,0.3)' }}></div>
+                                                    <div style={{ position: 'absolute', left: `${dot.px}%`, top: `calc(${dot.py}% - 14px)`, transform: 'translateX(-50%)', fontSize: '8px', fontWeight: 'black', color: '#10b981', whiteSpace: 'nowrap', zIndex: 11 }}>{fmtK(dot.value)}</div>
                                                 </React.Fragment>
                                             ))}
                                         </div>
@@ -240,9 +205,6 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                                 })()}
                             </div>
                         </div>
-
-
-                        {/* BANK ACCOUNTS */}
                         <div className="report-card" style={{ marginBottom: 0 }}>
                             <h3 style={{ fontSize: '10px', fontWeight: 'black', textTransform: 'uppercase', marginBottom: '0.75rem' }}>Saldos em Conta</h3>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -269,15 +231,11 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                             </div>
                         </div>
                     </div>
-
                 </div>
             </BaseReportLayout>
 
-            {/* PAGE 2: Contas Pendentes */}
-            <BaseReportLayout title="Contas Pendentes (A Pagar e A Receber)" empresa={empresa} watermark={watermark} subtitle={periodo} pageNumber={2} totalPages={3 + vehicleChunks.length} isManualPagination={true}>
+            <BaseReportLayout title="Contas Pendentes (A Pagar e A Receber)" empresa={empresa} watermark={watermark} subtitle={periodo} pageNumber={2} totalPages={totalPagesCalculated} isManualPagination={true}>
                 <div style={{ padding: '0.4rem 2rem 2rem 2rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                    
-                    {/* Contas a Pagar */}
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', borderBottom: '2px solid #f43f5e', paddingBottom: '0.5rem' }}>
                             <div style={{ width: '1.5rem', height: '1.5rem', background: '#fff1f2', borderRadius: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e11d48' }}>
@@ -298,21 +256,14 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                             </thead>
                             <tbody>
                                 {((data.contasPendentes || []) as any[]).filter(t => t.tipo === 'PAGAR').map((c, idx) => {
-                                    const pendente = (c.valor_total || 0) + (c.valor_acrescimo || 0) - (c.valor_pago || 0) - (c.valor_desconto || 0);
+                                    const v = (c.valor_total || 0) + (c.valor_acrescimo || 0) - (c.valor_pago || 0) - (c.valor_desconto || 0);
+                                    const veiculoLabel = c.veiculo ? `${c.veiculo.modelo} (${c.veiculo.placa || ''})` : '—';
                                     return (
-                                        <tr key={idx} style={{ background: '#f8fafc' }}>
-                                            <td style={{ padding: '8px', fontWeight: 'bold', borderTopLeftRadius: '6px', borderBottomLeftRadius: '6px', border: '1px solid #f1f5f9', borderRight: 'none' }}>
-                                                {new Date(c.data_vencimento.includes('T') ? c.data_vencimento : `${c.data_vencimento}T12:00:00`).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
-                                            </td>
-                                            <td style={{ padding: '8px', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
-                                                <span style={{ fontWeight: 'bold', color: '#334155' }}>{c.descricao}</span>
-                                            </td>
-                                            <td style={{ padding: '8px', textTransform: 'uppercase', fontSize: '8px', fontWeight: 'bold', color: '#64748b', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
-                                                {c.veiculo?.modelo ? `${c.veiculo.modelo} (${c.veiculo.placa})` : '—'}
-                                            </td>
-                                            <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'black', color: '#e11d48', fontSize: '10px', borderTopRightRadius: '6px', borderBottomRightRadius: '6px', border: '1px solid #f1f5f9', borderLeft: 'none' }}>
-                                                {fmt(pendente)}
-                                            </td>
+                                        <tr key={idx} style={{ background: '#fff5f5' }}>
+                                            <td style={{ padding: '6px 8px', fontWeight: 'black', color: '#0f172a', borderTopLeftRadius: '6px', borderBottomLeftRadius: '6px' }}>{c.data_vencimento ? new Date(c.data_vencimento).toLocaleDateString('pt-BR') : '—'}</td>
+                                            <td style={{ padding: '6px 8px', fontWeight: 'bold', color: '#334155' }}>{c.descricao || 'Pagamento sem descrição'}</td>
+                                            <td style={{ padding: '6px 8px', color: '#64748b', fontWeight: 'bold' }}>{veiculoLabel}</td>
+                                            <td style={{ padding: '6px 8px', fontWeight: 'black', color: '#e11d48', textAlign: 'right', borderTopRightRadius: '6px', borderBottomRightRadius: '6px' }}>{fmt(v)}</td>
                                         </tr>
                                     );
                                 })}
@@ -324,11 +275,11 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                                     </tr>
                                 )}
                                 {((data.contasPendentes || []) as any[]).filter(t => t.tipo === 'PAGAR').length > 0 && (
-                                    <tr style={{ background: '#fff1f2' }}>
-                                        <td colSpan={3} style={{ padding: '8px', textAlign: 'right', fontWeight: 'black', color: '#e11d48', fontSize: '9px', textTransform: 'uppercase', borderTopLeftRadius: '6px', borderBottomLeftRadius: '6px', border: '1px solid #ffe4e6', borderRight: 'none' }}>
+                                    <tr style={{ background: '#ffe4e6' }}>
+                                        <td colSpan={3} style={{ padding: '8px', textAlign: 'right', fontWeight: 'black', color: '#e11d48', fontSize: '9px', textTransform: 'uppercase', borderTopLeftRadius: '6px', borderBottomLeftRadius: '6px', border: '1px solid #fecdd3', borderRight: 'none' }}>
                                             Total a Pagar:
                                         </td>
-                                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'black', color: '#e11d48', fontSize: '11px', borderTopRightRadius: '6px', borderBottomRightRadius: '6px', border: '1px solid #ffe4e6', borderLeft: 'none' }}>
+                                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'black', color: '#e11d48', fontSize: '11px', borderTopRightRadius: '6px', borderBottomRightRadius: '6px', border: '1px solid #fecdd3', borderLeft: 'none' }}>
                                             {fmt(((data.contasPendentes || []) as any[]).filter(t => t.tipo === 'PAGAR').reduce((acc, c) => acc + ((c.valor_total || 0) + (c.valor_acrescimo || 0) - (c.valor_pago || 0) - (c.valor_desconto || 0)), 0))}
                                         </td>
                                     </tr>
@@ -337,7 +288,6 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                         </table>
                     </div>
 
-                    {/* Contas a Receber */}
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', borderBottom: '2px solid #10b981', paddingBottom: '0.5rem' }}>
                             <div style={{ width: '1.5rem', height: '1.5rem', background: '#ecfdf5', borderRadius: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#059669' }}>
@@ -358,21 +308,14 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                             </thead>
                             <tbody>
                                 {((data.contasPendentes || []) as any[]).filter(t => t.tipo === 'RECEBER').map((c, idx) => {
-                                    const pendente = (c.valor_total || 0) + (c.valor_acrescimo || 0) - (c.valor_pago || 0) - (c.valor_desconto || 0);
+                                    const v = (c.valor_total || 0) + (c.valor_acrescimo || 0) - (c.valor_pago || 0) - (c.valor_desconto || 0);
+                                    const veiculoLabel = c.veiculo ? `${c.veiculo.modelo} (${c.veiculo.placa || ''})` : '—';
                                     return (
-                                        <tr key={idx} style={{ background: '#f8fafc' }}>
-                                            <td style={{ padding: '8px', fontWeight: 'bold', borderTopLeftRadius: '6px', borderBottomLeftRadius: '6px', border: '1px solid #f1f5f9', borderRight: 'none' }}>
-                                                {new Date(c.data_vencimento.includes('T') ? c.data_vencimento : `${c.data_vencimento}T12:00:00`).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
-                                            </td>
-                                            <td style={{ padding: '8px', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
-                                                <span style={{ fontWeight: 'bold', color: '#334155' }}>{c.descricao}</span>
-                                            </td>
-                                            <td style={{ padding: '8px', textTransform: 'uppercase', fontSize: '8px', fontWeight: 'bold', color: '#64748b', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
-                                                {c.veiculo?.modelo ? `${c.veiculo.modelo} (${c.veiculo.placa})` : '—'}
-                                            </td>
-                                            <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'black', color: '#059669', fontSize: '10px', borderTopRightRadius: '6px', borderBottomRightRadius: '6px', border: '1px solid #f1f5f9', borderLeft: 'none' }}>
-                                                {fmt(pendente)}
-                                            </td>
+                                        <tr key={idx} style={{ background: '#f0fdf4' }}>
+                                            <td style={{ padding: '6px 8px', fontWeight: 'black', color: '#0f172a', borderTopLeftRadius: '6px', borderBottomLeftRadius: '6px' }}>{c.data_vencimento ? new Date(c.data_vencimento).toLocaleDateString('pt-BR') : '—'}</td>
+                                            <td style={{ padding: '6px 8px', fontWeight: 'bold', color: '#334155' }}>{c.descricao || 'Recebimento sem descrição'}</td>
+                                            <td style={{ padding: '6px 8px', color: '#64748b', fontWeight: 'bold' }}>{veiculoLabel}</td>
+                                            <td style={{ padding: '6px 8px', fontWeight: 'black', color: '#059669', textAlign: 'right', borderTopRightRadius: '6px', borderBottomRightRadius: '6px' }}>{fmt(v)}</td>
                                         </tr>
                                     );
                                 })}
@@ -384,11 +327,11 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                                     </tr>
                                 )}
                                 {((data.contasPendentes || []) as any[]).filter(t => t.tipo === 'RECEBER').length > 0 && (
-                                    <tr style={{ background: '#ecfdf5' }}>
-                                        <td colSpan={3} style={{ padding: '8px', textAlign: 'right', fontWeight: 'black', color: '#059669', fontSize: '9px', textTransform: 'uppercase', borderTopLeftRadius: '6px', borderBottomLeftRadius: '6px', border: '1px solid #d1fae5', borderRight: 'none' }}>
+                                    <tr style={{ background: '#dcfce7' }}>
+                                        <td colSpan={3} style={{ padding: '8px', textAlign: 'right', fontWeight: 'black', color: '#059669', fontSize: '9px', textTransform: 'uppercase', borderTopLeftRadius: '6px', borderBottomLeftRadius: '6px', border: '1px solid #bbf7d0', borderRight: 'none' }}>
                                             Total a Receber:
                                         </td>
-                                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'black', color: '#059669', fontSize: '11px', borderTopRightRadius: '6px', borderBottomRightRadius: '6px', border: '1px solid #d1fae5', borderLeft: 'none' }}>
+                                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'black', color: '#059669', fontSize: '11px', borderTopRightRadius: '6px', borderBottomRightRadius: '6px', border: '1px solid #bbf7d0', borderLeft: 'none' }}>
                                             {fmt(((data.contasPendentes || []) as any[]).filter(t => t.tipo === 'RECEBER').reduce((acc, c) => acc + ((c.valor_total || 0) + (c.valor_acrescimo || 0) - (c.valor_pago || 0) - (c.valor_desconto || 0)), 0))}
                                         </td>
                                     </tr>
@@ -396,11 +339,9 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                             </tbody>
                         </table>
                     </div>
-
                 </div>
             </BaseReportLayout>
 
-            {/* PAGE 2+: Chunked Vehicles */}
             {vehicleChunks.filter(chunk => chunk.length > 0).map((chunk, chunkIdx) => (
                 <BaseReportLayout
                     key={chunkIdx}
@@ -409,7 +350,7 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                     watermark={watermark}
                     subtitle={periodo}
                     pageNumber={3 + chunkIdx}
-                    totalPages={3 + vehicleChunks.length}
+                    totalPages={totalPagesCalculated}
                     isManualPagination={true}
                 >
                     <div style={{ padding: '0.5rem 2rem 2rem 2rem' }}>
@@ -450,14 +391,13 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                 </BaseReportLayout>
             ))}
 
-            {/* FINAL PAGE: Visão Consolidada */}
             <BaseReportLayout
                 title="Visão Consolidada de Equity"
                 empresa={empresa}
                 watermark={watermark}
                 subtitle={periodo}
                 pageNumber={3 + vehicleChunks.length}
-                totalPages={3 + vehicleChunks.length}
+                totalPages={totalPagesCalculated}
                 isManualPagination={true}
             >
                 <div style={{ padding: '2rem' }}>
@@ -472,7 +412,6 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                                 <h4 style={{ fontSize: '18px', fontWeight: 'black', color: '#10b981', margin: 0 }}>{fmt(totalEstoque)}</h4>
                             </div>
                         </div>
-                        
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
                             {partnerTotals.map((pt, i) => {
                                 const percentage = totalEstoque > 0 ? ((pt.total / totalEstoque) * 100).toFixed(1) : '0.0';
@@ -491,68 +430,66 @@ const CaixaTemplate: React.FC<Props> = ({ data, empresa, watermark, periodo, ano
                 </div>
             </BaseReportLayout>
 
-            {/* ═══════════ PÁGINA DE ANOTAÇÕES (condicional) ═══════════ */}
-            {anotacoes.length > 0 && (
-                <div className="page-break">
-                    <BaseReportLayout
-                        empresa={empresa}
-                        watermark={watermark}
-                        title="Anotações do Período"
-                        subtitle={periodo}
-                        pageNumber={vehicleChunks.length + 3}
-                        isManualPagination={true}
-                    >
-                        <div style={{ padding: '2rem' }}>
-                            <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ width: '4px', height: '24px', background: '#7c3aed', borderRadius: '2px' }} />
-                                <div>
-                                    <h4 style={{ fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', color: '#1e293b', margin: 0 }}>Anotações</h4>
-                                    <p style={{ fontSize: '9px', fontWeight: 'bold', color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '1px', margin: '2px 0 0' }}>Registros informativos — sem movimentação financeira</p>
-                                </div>
+            {hasAnotacoes && (
+                <BaseReportLayout
+                    empresa={empresa}
+                    watermark={watermark}
+                    title="Anotações do Período"
+                    subtitle={periodo}
+                    pageNumber={4 + vehicleChunks.length}
+                    totalPages={totalPagesCalculated}
+                    isManualPagination={true}
+                >
+                    <div style={{ padding: '2rem' }}>
+                        <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ width: '4px', height: '24px', background: '#7c3aed', borderRadius: '2px' }} />
+                            <div>
+                                <h4 style={{ fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', color: '#1e293b', margin: 0 }}>Anotações</h4>
+                                <p style={{ fontSize: '9px', fontWeight: 'bold', color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '1px', margin: '2px 0 0' }}>Registros informativos — sem movimentação financeira</p>
                             </div>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
-                                <thead>
-                                    <tr style={{ background: '#7c3aed' }}>
-                                        <th style={{ padding: '8px 12px', textAlign: 'left', color: 'white', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '8px', width: '100px' }}>Data</th>
-                                        <th style={{ padding: '8px 12px', textAlign: 'left', color: 'white', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '8px' }}>Descrição</th>
-                                        <th style={{ padding: '8px 12px', textAlign: 'right', color: 'white', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '8px', width: '120px' }}>Valor</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {anotacoes.map((a, i) => {
-                                        const [y, m, d] = a.data.split('T')[0].split('-');
-                                        const dateFormatted = `${d}/${m}/${y}`;
-                                        return (
-                                            <tr key={a.id} style={{ background: i % 2 === 0 ? '#f8f9ff' : 'white', borderBottom: '1px solid #e8e0ff' }}>
-                                                <td style={{ padding: '8px 12px', fontWeight: '700', color: '#7c3aed', fontSize: '9px' }}>{dateFormatted}</td>
-                                                <td style={{ padding: '8px 12px', color: '#334155', fontWeight: '500', fontSize: '10px' }}>{a.descricao}</td>
-                                                <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '800', color: a.valor !== null ? '#059669' : '#cbd5e1', fontSize: '10px' }}>
-                                                    {a.valor !== null
-                                                        ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(a.valor)
-                                                        : '—'
-                                                    }
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                                {anotacoes.some(a => a.valor !== null) && (
-                                    <tfoot>
-                                        <tr style={{ background: '#ede9fe', borderTop: '2px solid #7c3aed' }}>
-                                            <td colSpan={2} style={{ padding: '8px 12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '8px', color: '#7c3aed' }}>Total com Valor</td>
-                                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: '#059669', fontSize: '11px' }}>
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                                                    anotacoes.filter(a => a.valor !== null).reduce((acc, a) => acc + (a.valor || 0), 0)
-                                                )}
+                        </div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                            <thead>
+                                <tr style={{ background: '#7c3aed' }}>
+                                    <th style={{ padding: '8px 12px', textAlign: 'left', color: 'white', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '8px', width: '100px' }}>Data</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'left', color: 'white', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '8px' }}>Descrição</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'right', color: 'white', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '8px', width: '120px' }}>Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {anotacoes.map((a, i) => {
+                                    const [y, m, d] = a.data.split('T')[0].split('-');
+                                    const dateFormatted = `${d}/${m}/${y}`;
+                                    return (
+                                        <tr key={a.id} style={{ background: i % 2 === 0 ? '#f8f9ff' : 'white', borderBottom: '1px solid #e8e0ff' }}>
+                                            <td style={{ padding: '8px 12px', fontWeight: '700', color: '#7c3aed', fontSize: '9px' }}>{dateFormatted}</td>
+                                            <td style={{ padding: '8px 12px', color: '#334155', fontWeight: '500', fontSize: '10px' }}>{a.descricao}</td>
+                                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '800', color: a.valor !== null ? '#059669' : '#cbd5e1', fontSize: '10px' }}>
+                                                {a.valor !== null
+                                                    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(a.valor)
+                                                    : '—'
+                                                }
                                             </td>
                                         </tr>
-                                    </tfoot>
-                                )}
-                            </table>
-                            <p style={{ fontSize: '8px', color: '#94a3b8', marginTop: '16px', fontStyle: 'italic' }}>* Estes registros são informativos e não representam movimentação financeira real.</p>
-                        </div>
-                    </BaseReportLayout>
-                </div>
+                                    );
+                                })}
+                            </tbody>
+                            {anotacoes.some(a => a.valor !== null) && (
+                                <tfoot>
+                                    <tr style={{ background: '#ede9fe', borderTop: '2px solid #7c3aed' }}>
+                                        <td colSpan={2} style={{ padding: '8px 12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '8px', color: '#7c3aed' }}>Total com Valor</td>
+                                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: '#059669', fontSize: '11px' }}>
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                                                anotacoes.filter(a => a.valor !== null).reduce((acc, a) => acc + (a.valor || 0), 0)
+                                            )}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            )}
+                        </table>
+                        <p style={{ fontSize: '8px', color: '#94a3b8', marginTop: '16px', fontStyle: 'italic' }}>* Estes registros são informativos e não representam movimentação financeira real.</p>
+                    </div>
+                </BaseReportLayout>
             )}
         </div>
     );
